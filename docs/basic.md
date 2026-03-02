@@ -56,7 +56,7 @@ commands:
     server
 ```
 
-The example is self-explaining enough, except the **crucial bit**. Did you notice the unnoticeable minus sign prefixing the option ?
+The example is self-explaining enough, except the **crucial bit**. Did you notice the unnoticeable minus sign prefixing the option?
 You **must** add it for the type check to pass:
 
 ```python
@@ -65,7 +65,7 @@ cli.bind(
 )
 ```
 
-Why ? In short, paramspecli [lies to the typechecher](qa.md). In the name of good, of course.
+Why? In short, paramspecli [lies to the type checker](qa.md). In the name of good, of course.
 
 If you don't like minus, use the `t` property. Or `t` object, which overloads `[]`, `@`, `()` operations. Choose one style
 and stick to it.
@@ -80,7 +80,7 @@ t @ option("-n")
 option("-n") @ t
 ```
 
-!!! question "Why `with` and context managers ?"
+!!! question "Why `with` and context managers?"
 
     Just for an aesthetic - they paint a very nice visual hierarchy. They are not required and in fact do nothing.
 

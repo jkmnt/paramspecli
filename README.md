@@ -64,7 +64,7 @@ pip install paramspecli
 - Commands match handler functions parameters with arguments and options.
 - Arguments are bound to the handler's positional parameters.
 - Options are bound to the handler's keyword parameters.
-- Groups organize the commands. Groups may be nested. They could act like like an intermediate commands, i.e. have own handlers, options and arguments.
+- Groups organize the commands. Groups may be nested. They could act like an intermediate commands, i.e. have own handlers, options and arguments.
 - CLI 'compiles' to the `argparse`, runs it, then outputs the parse result.
 - Parse result is a callable. Calling it invokes handlers along the route.
 

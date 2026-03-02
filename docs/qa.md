@@ -1,6 +1,6 @@
 # Answers
 
-- Are environment valiables supported ?
+- Are environment valiables supported?
 
     Do it manually:
 
@@ -31,11 +31,11 @@
     )
     ```
 
-- What about the bash autocompletion ?
+- What about the bash autocompletion?
 
     Maybe someday.
 
-- Where is the [FileType](https://docs.python.org/3/library/argparse.html#argparse.FileType) with auto-opening ?
+- Where is the [FileType](https://docs.python.org/3/library/argparse.html#argparse.FileType) with auto-opening?
 
     Use the `pathlib.Path` methods instead:
 
@@ -46,7 +46,7 @@
     cmd.bind(file=option("--file", type=PathConv.file(exist=True)))
     ```
 
-- May I use `Enum` as a type converter ?
+- May I use `Enum` as a type converter?
 
     `StrEnum` is nice and actually works.
 
@@ -94,6 +94,6 @@
 
     Minus is choosen as producing the minimum visual noise. Also it's a nod to the `-` options prefix character.
 
-- Why such a stupid name ?
+- Why such a stupid name?
 
     CLI libs should have `cli` in their name. It's the law. And `clit` is already taken on the PyPI.
