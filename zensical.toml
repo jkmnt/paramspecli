@@ -19,7 +19,7 @@ nav = [
 [project.theme]
 
 variant = "classic"
-font = false
+# font = false
 logo = "logo.svg"
 favicon = "favicon.png"
 features = [
