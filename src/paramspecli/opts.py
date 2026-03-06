@@ -198,6 +198,10 @@ def option(
     show_default: bool | str | None = None,
 ) -> Option[Any, Any]:
     """Just an option"""
+
+    if metavar is None and choices is None:
+        metavar = names[0].lstrip("-").upper()
+
     return Option(
         names,
         help=help,
@@ -206,7 +210,7 @@ def option(
         default=default,
         const=... if nargs == "?" else None,
         choices=choices,
-        metavar=metavar if metavar is not None else names[0].lstrip("-").upper(),
+        metavar=metavar,
         action="store",
         #
         hard_show_default=show_default,
@@ -310,13 +314,17 @@ def repeated_option(
 ) -> RepeatedOption[Any]:
     """Option which could present multiple times on a command line.
     Result is collected into the list"""
+
+    if metavar is None and choices is None:
+        metavar = names[0].lstrip("-").upper()
+
     return RepeatedOption(
         names,
         help=help,
         type=type,
         nargs=nargs,
         choices=choices,
-        metavar=metavar if metavar is not None else names[0].lstrip("-").upper(),
+        metavar=metavar,
         action="extend" if flatten else "append",
         default=[],
         #

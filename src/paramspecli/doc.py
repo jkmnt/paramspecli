@@ -65,6 +65,7 @@ class Settings:
     usage_title: str = "Usage"
     aliases_title: str = "Aliases"
     options_headline: str | None = None
+    choice_metavar: str = "CHOICE"
 
 
 class Doc:
@@ -121,8 +122,10 @@ class Doc:
         else:
             out += _join([r.code(name) for name in names], sep=", ")
 
-        if option.metavar is not None:
-            out += " " + r.i(r.e(self.r_metavar(option.metavar, option)))
+        metavar = self.r_metavar(option)
+
+        if metavar:
+            out += " " + r.i(r.e(metavar))
         return out
 
     def r_option_default(self, option: Opt) -> str:
@@ -164,9 +167,16 @@ class Doc:
 
         return out
 
-    def r_metavar(self, metavar: str | tuple[str, ...], item: Opt | Arg) -> str:
+    def r_metavar(self, item: Opt | Arg) -> str:
+        metavar = item.metavar
         if isinstance(metavar, tuple):
             return _join(metavar, sep=" ")
+
+        if metavar is None:
+            if item.choices:
+                metavar = self.config.choice_metavar
+            else:
+                return ""
 
         nargs = item.nargs
 
@@ -177,7 +187,7 @@ class Doc:
         if nargs == "+":
             return f"{metavar} [{metavar} ...]"
         if nargs == "?":
-            return f"[{metavar} ...]"
+            return f"[{metavar}]"
         return metavar
 
     def r_arguments(self, arguments: Sequence[Arg]) -> str:
@@ -231,7 +241,7 @@ class Doc:
     def _group_usage_partial(self, me: BoundGroup) -> str:
         return _join(
             me.name,
-            [self.r_metavar(arg.metavar, arg) for arg in self.get_arguments(me)],
+            [self.r_metavar(arg) for arg in self.get_arguments(me)],
             sep=" ",
         )
 
@@ -273,7 +283,7 @@ class Doc:
                 [self._group_usage_partial(p) for p in parents],
                 me.name,
                 [f"[{section.title.lower()}]" for section in options_sections],
-                [self.r_metavar(arg.metavar, arg) for arg in self.get_arguments(me)],
+                [self.r_metavar(arg) for arg in self.get_arguments(me)],
                 sep=" ",
             )
         )

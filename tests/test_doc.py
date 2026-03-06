@@ -29,6 +29,7 @@ def test_kitchen_sink() -> None:
                     help="Port to use",
                     nargs="+",
                     flatten=True,
+                    metavar="PORT",
                     choices={
                         80: "production",
                         8080: "internal",
