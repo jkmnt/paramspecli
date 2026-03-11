@@ -130,16 +130,6 @@ def switch(
     show_default: bool | str | None = None,
 ) -> Option[bool, Any]:
     """On/Off switch with complimentary flags: `--foo/--no-foo`. Default is `False`"""
-    longs = [name for name in names if name.startswith("--")]
-    if not longs:
-        raise ValueError("at least one name starting with '--' is required")
-
-    soft_show_default: bool | str
-
-    if default is True or default is False:
-        soft_show_default = longs[0] if default else f"--no-{longs[0][2:]}"
-    else:
-        soft_show_default = True
 
     return Option(
         names,
@@ -148,7 +138,7 @@ def switch(
         default=default,
         #
         hard_show_default=show_default,
-        soft_show_default=soft_show_default,
+        soft_show_default=True,
     )
 
 

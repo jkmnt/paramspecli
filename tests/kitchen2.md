@@ -29,7 +29,7 @@ Options:
 
 - `--debug`/`--no-debug`, `-g`
 
-    Enable debug (default: `--no-debug`)
+    Enable debug (default: `False`)
 
 - `--some3` *SOME3*
 

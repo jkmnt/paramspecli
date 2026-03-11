@@ -90,15 +90,6 @@ def test_bad_params_registration() -> None:
             foo=-argument("foo", type=int),
         )
 
-    def func2(*, debug: bool) -> None: ...
-
-    cli2 = Command(func2)
-
-    with pytest.raises(ValueError, match="name starting with '--'"):
-        cli2.bind(
-            debug=-switch("foo"),
-        )
-
 
 def test_alt_lie() -> None:
     assert_type(

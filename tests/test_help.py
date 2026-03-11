@@ -102,9 +102,9 @@ def test_default_options_with_global_off(
         #
         (switch("--foo"), "--foo, --no-foo"),
         (switch("--foo", help="foo", show_default=False), "--foo, --no-foo foo"),
-        (switch("--foo", help="foo"), "--foo, --no-foo foo (default: --no-foo)"),
+        (switch("--foo", help="foo"), "--foo, --no-foo foo (default: False)"),
         (switch("--foo", help="foo", default="?"), "--foo, --no-foo foo (default: ?)"),
-        (switch("--foo", help="foo", default=True), "--foo, --no-foo foo (default: --foo)"),
+        (switch("--foo", help="foo", default=True), "--foo, --no-foo foo (default: True)"),
         (switch("--foo", help="foo", show_default="!!!"), "--foo, --no-foo foo (default: !!!)"),
     ],
 )
