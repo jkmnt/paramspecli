@@ -1,15 +1,17 @@
 """Type-safe facade for the venerable argparse"""
 
-__version__ = "0.2.1"
+__version__ = "0.2.2"
 
 
 from .args import argument as argument
+from .cli import MISSING as MISSING
 from .cli import Action as Action
 from .cli import CallableGroup as CallableGroup
 from .cli import Command as Command
 from .cli import Config as Config
 from .cli import Group as Group
 from .cli import Handler as Handler
+from .cli import Missing as Missing
 from .cli import Route as Route
 from .cli import help_action as help_action
 from .cli import version_action as version_action

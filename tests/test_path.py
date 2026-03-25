@@ -65,7 +65,7 @@ def test_path(
     elif type == "dir":
         conv = PathConv.dir(exists=exists, resolve=resolve)
     else:
-        conv = PathConv(type=None, exists=exists, resolve=resolve)
+        conv = PathConv(kind=None, exists=exists, resolve=resolve)
 
     if isinstance(expected, Fs):
         path = Path(expected)
@@ -78,6 +78,6 @@ def test_path(
 
 
 def test_bad_path() -> None:
-    conv = PathConv(type="file")
+    conv = PathConv(kind="file")
     with pytest.raises(ValueError, match="nul"):
         conv("\0")

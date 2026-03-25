@@ -323,8 +323,7 @@ _class_ **Group**(_\*, help=None, info=None, usage=None, epilog=None, prog=None,
 - _title_ - title for the list of own commands. Default is set in [Configuration](advanced.md#configuration).
 - _headline_ - description for the list of own commands
 - _metavar_ - meta-variable name for own commands
-- _default_func_ - default handler if no command was choosen. By default, prints own help. If set to `None`,
-  choosing command is required.
+- _default_func_ - default handler if no command was selected. By default, prints own help. If set to `None`, command is required.
 - _add_help_ - add `--help` action
 
 ---

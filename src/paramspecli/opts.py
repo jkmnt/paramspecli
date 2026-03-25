@@ -1,7 +1,7 @@
-from types import EllipsisType
 from typing import Any, Iterable, Literal, overload
 
 from .apstub import TypeConverter
+from .cli import Missing
 from .fake import Option, RepeatedOption
 
 
@@ -49,7 +49,7 @@ def option(
     choices: Iterable[str] | None = None,
     metavar: str | tuple[str, ...] | None = None,
     show_default: bool | str | None = None,
-) -> Option[str | EllipsisType, None]: ...
+) -> Option[str | Missing, None]: ...
 
 
 ## nargs, default: D
@@ -75,7 +75,7 @@ def option[D](
     choices: Iterable[str] | None = None,
     metavar: str | tuple[str, ...] | None = None,
     show_default: bool | str | None = None,
-) -> Option[str | EllipsisType, D]: ...
+) -> Option[str | Missing, D]: ...
 
 
 ## type: T
@@ -127,7 +127,7 @@ def option[T](
     choices: Iterable[T] | None = None,
     metavar: str | tuple[str, ...] | None = None,
     show_default: bool | str | None = None,
-) -> Option[T | EllipsisType, None]: ...
+) -> Option[T | Missing, None]: ...
 
 
 ## type: T, default: str, nargs
@@ -156,7 +156,7 @@ def option[T](
     choices: Iterable[T] | None = None,
     metavar: str | tuple[str, ...] | None = None,
     show_default: bool | str | None = None,
-) -> Option[T | EllipsisType, T]: ...
+) -> Option[T | Missing, T]: ...
 
 
 ## type: T, default: D, nargs
@@ -184,7 +184,7 @@ def option[T, D](
     choices: Iterable[T] | None = None,
     metavar: str | tuple[str, ...] | None = None,
     show_default: bool | str | None = None,
-) -> Option[T | EllipsisType, D]: ...
+) -> Option[T | Missing, D]: ...
 
 
 def option(
@@ -205,7 +205,7 @@ def option(
     return Option(
         names,
         help=help,
-        type=type,
+        conv=type,
         nargs=nargs,
         default=default,
         const=... if nargs == "?" else None,
@@ -321,7 +321,7 @@ def repeated_option(
     return RepeatedOption(
         names,
         help=help,
-        type=type,
+        conv=type,
         nargs=nargs,
         choices=choices,
         metavar=metavar,

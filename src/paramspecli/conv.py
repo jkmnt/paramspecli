@@ -6,11 +6,11 @@ from typing import Final, Literal
 class PathConv:
     __name__ = "PATH"
 
-    __slots__ = ("exists", "resolve", "type")
+    __slots__ = ("exists", "kind", "resolve")
 
-    def __init__(self, type: Literal["file", "dir", None] = None, *, exists: bool | None = None, resolve: bool = True):
+    def __init__(self, kind: Literal["file", "dir", None] = None, *, exists: bool | None = None, resolve: bool = True):
         self.exists: Final = exists
-        self.type: Final = type
+        self.kind: Final = kind
         self.resolve: Final = resolve
 
     # scenarios:
@@ -26,24 +26,24 @@ class PathConv:
         if self.resolve:
             path = path.resolve()
 
-        check_type = False
+        check_kind = False
 
         if self.exists is True:
             if not path.exists():
                 raise ArgumentTypeError(f"{path} does not exists")
-            check_type = True
+            check_kind = True
         elif self.exists is False:
             if path.exists():
                 raise ArgumentTypeError(f"{path} already exists")
         else:
-            if self.type and path.exists():
-                check_type = True
+            if self.kind and path.exists():
+                check_kind = True
 
-        if check_type:
-            if self.type == "file":
+        if check_kind:
+            if self.kind == "file":
                 if not path.is_file():
                     raise ArgumentTypeError(f"{path} is not a file")
-            elif self.type == "dir":
+            elif self.kind == "dir":
                 if not path.is_dir():
                     raise ArgumentTypeError(f"{path} is not a directory")
 

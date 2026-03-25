@@ -39,7 +39,7 @@ from paramspecli.util import catch_all
 
 def regexp(*names: str, help: str | bool | None = None) -> Option[re.Pattern[str], None]:
     conv = catch_all(re.compile)
-    return Option(names=names, type=conv, help=help, metavar="REGEXP")
+    return Option(names=names, conv=conv, help=help, metavar="REGEXP")
 
 cmd.bind(match_re=-regexp("--match"))
 
@@ -55,13 +55,13 @@ In most cases Option resulting type would be Union\[_T_, _D_\]. _D_ is starting 
 
 ---
 
-_class_ **Option**\[_T_, _D_\](_names, \*, type=None, help=None, nargs=None, default=None, const=None,
+_class_ **Option**\[_T_, _D_\](_names, \*, conv=None, help=None, nargs=None, default=None, const=None,
 required=False, choices=None, metavar=None, action=None, deprecated=False, extra=None_)
 
-_class_ **Argument**\[_T_, _D_\](_metavar, \*, type=None, help=None, nargs=None, choices=None, default=None, extra=None_)
+_class_ **Argument**\[_T_, _D_\](_metavar, \*, conv=None, help=None, nargs=None, choices=None, default=None, extra=None_)
 
 - _names_ - tuple of names
-- _type_ - type converter
+- _conv_ - type converter
 - _help_ - help message
     - str: this string
     - `None`: nothing

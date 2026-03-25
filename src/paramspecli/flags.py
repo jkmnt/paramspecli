@@ -1,6 +1,7 @@
 from argparse import BooleanOptionalAction
 from typing import Any, Literal, overload
 
+from .cli import MISSING
 from .fake import Option, RepeatedOption
 
 
@@ -54,7 +55,7 @@ def flag[D](
 def flag(
     *names: str,
     value: Any = True,
-    default: Any = ...,
+    default: Any = MISSING,
     help: str | bool | None = None,
     show_default: bool | str | None = None,
 ) -> Option[Any, Any]:
@@ -80,7 +81,7 @@ def flag(
 
 
     """
-    if default is ...:
+    if default is MISSING:
         soft_show_default = False
         if value is True:
             default = False

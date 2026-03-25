@@ -107,4 +107,4 @@ def argument(
     choices: Iterable[Any] | None = None,
 ) -> Argument[Any, Any]:
     """Positional argument. Always required, unless made optional via `nargs="?"`."""
-    return Argument(metavar, help=help, type=type, choices=choices, nargs=nargs, default=default)
+    return Argument(metavar, help=help, conv=type, choices=choices, nargs=nargs, default=default)

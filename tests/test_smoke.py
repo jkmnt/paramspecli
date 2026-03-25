@@ -2,10 +2,10 @@ import sys
 
 import pytest
 
-from paramspecli import Handler, argument, flag, option
+from paramspecli import Config, Handler, argument, flag, option
 from paramspecli.util import resolve_later
 
-from .fix import Command, Group, ParseError
+from .fix import ANY_FUNC, Command, Group, ParseError
 
 
 def test_simple() -> None:
@@ -212,3 +212,34 @@ def test_third_party() -> None:
     ]
 
     res()
+
+
+def test_ignore_args_command() -> None:
+
+    def f1(a: str, *, foo: int | None) -> None: ...
+
+    cli = Command(f1, info="prog")
+    cli.bind(
+        -argument("A"),
+        foo=-option("--foo", type=int),
+    )
+
+    cfg = Config(ignore_unknown_args=True)
+
+    res = cli.parse("a --foo=12 --bar 22", config=cfg)
+    assert res.nonempty == [
+        Handler.from_spec(f1, "a", foo=12),
+    ]
+    assert res.unknown_args == ["--bar", "22"]
+
+
+def test_ignore_args_group() -> None:
+
+    cli = Group(info="prog")
+    cfg = Config(ignore_unknown_args=True)
+
+    res = cli.parse("--foo=12 --bar 22", config=cfg)
+    assert res.nonempty == [
+        Handler.from_spec(ANY_FUNC),
+    ]
+    assert res.unknown_args == ["--foo=12", "--bar", "22"]

@@ -17,7 +17,6 @@ from paramspecli import (
     option,
     repeated_flag,
     repeated_option,
-    switch,
     util,
     version_action,
 )

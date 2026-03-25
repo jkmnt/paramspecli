@@ -103,3 +103,4 @@ def test_cmp() -> None:
     a = Const("a")
     assert a == Const("a")
     assert a != "a"
+

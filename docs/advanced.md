@@ -178,9 +178,9 @@ paramspecli includes a handy [pathlib.Path](https://docs.python.org/3/library/pa
 
 ---
 
-_class_ **PathConv**(_type=None, \*, exists=None, resolve=True_)
+_class_ **PathConv**(_kind=None, \*, exists=None, resolve=True_)
 
-- _type_ - `"file"`, `"dir"` or `None` (don't care). Checks path type if appliable.
+- _kind_ - `"file"`, `"dir"` or `None` (don't care). Checks path type if appliable.
 - _exists_ - check the path existence
     - `True`: path should exist
     - `False`: path should not exist
@@ -189,7 +189,7 @@ _class_ **PathConv**(_type=None, \*, exists=None, resolve=True_)
 
 ---
 
-There are also a shortcut classmethods for both path types.
+There are also a shortcut classmethods for both path kinds.
 
 Example:
 
@@ -202,8 +202,8 @@ def copy(src: Path, dest: Path):
     pass
 
 Command(copy).bind(
-    -argument("SRC", type=PathConv.file(exists=True)),
-    -argument("DST", type=PathConv.dir(exists=False))
+    -argument("SRC", kind=PathConv.file(exists=True)),
+    -argument("DST", kind=PathConv.dir(exists=False))
 )
 
 ```
@@ -220,7 +220,7 @@ They borrow a `func` setting and a `bind()` method from the `Command`.
 
 One useful application of group options is to perform some global initialization.
 
-Here, the CLI-level `--color` flag is processed before any choosed command:
+Here, the CLI-level `--color` flag is processed before any selected command:
 
 ```python
 
@@ -309,9 +309,6 @@ ctx.route = res
 
 res()
 ```
-
-
-
 
 ## Const parameters
 
@@ -438,5 +435,6 @@ A few aspects of the generated `ArgumentParser` may be tuned by passing a custom
 - _allow_abbrev_ = False. Allow argparse do the guesswork and accept sloppy command line.
 - _parser_class_. Allows to use alternative parser class instead of the `ArgumentParser`
 - _formatter_class_ - Allows to choose `HelpFormatter`-compatible formatter. By default, set to a slighty modified one, which disables wrapping if there are manual line breaks in text.
+- _ignore_unknown_args_ - Silently ignore any unrecognized args and store them into the `Route.unknown_args`. _Added in 0.2.2_
 - _root_parser_extra_kwargs_ - dict of extra kwargs for the root `ArgumentParser()`
 - _sub_parser_extra_kwargs_ - dict of extra kwargs for every sub `ArgumentParser()`

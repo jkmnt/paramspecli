@@ -4,7 +4,7 @@ from typing import Any, Final, Iterable, Mapping, NamedTuple, Protocol, Sequence
 
 from paramspecli import md
 
-from .cli import Arg, Command, Group, Opt, Section, name_and_aliases
+from .cli import Arg, Command, Group, Opt, Section, name_and_aliases, nice_str
 
 
 class Renderer(Protocol):
@@ -137,12 +137,12 @@ class Doc:
             if isinstance(option.hard_show_default, str):
                 default = option.hard_show_default
             elif option.hard_show_default is True:
-                default = str(option.default)
+                default = nice_str(option.default)
         else:
             if isinstance(option.soft_show_default, str):
                 default = option.soft_show_default
             elif option.soft_show_default is True:
-                default = str(option.default)
+                default = nice_str(option.default)
 
         if default is None:
             return ""

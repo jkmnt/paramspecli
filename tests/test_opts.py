@@ -1,12 +1,12 @@
 import os
 from enum import StrEnum
 from ipaddress import IPv4Address
-from types import EllipsisType
 from typing import assert_type
 
 import pytest
 
 from paramspecli import Handler, option, repeated_option, required, t
+from paramspecli.cli import MISSING, Missing
 
 from .fix import ParseError, SimpleParser, assert_compat
 
@@ -134,16 +134,16 @@ def test_opt__nargs() -> None:
 
 def test_opt__optional() -> None:
     p = SimpleParser(
-        foo=assert_compat[str | EllipsisType | None](
+        foo=assert_compat[str | Missing | None](
             assert_type(
                 -option("--foo", nargs="?"),
-                str | EllipsisType | None,
+                str | Missing | None,
             )
         ),
     )
     assert p("") == Handler.from_spec(None, foo=None)
     assert p("--foo a") == Handler.from_spec(None, foo="a")
-    assert p("--foo") == Handler.from_spec(None, foo=...)
+    assert p("--foo") == Handler.from_spec(None, foo=MISSING)
 
 
 def test_opt__nargs__default_D() -> None:
@@ -231,16 +231,16 @@ def test_opt__nargs__default_D() -> None:
 
 def test_opt__optional__default_D() -> None:
     p = SimpleParser(
-        foo=assert_compat[str | int | EllipsisType](
+        foo=assert_compat[str | int | Missing](
             assert_type(
                 -option("--foo", nargs="?", default=2),
-                str | int | EllipsisType,
+                str | int | Missing,
             )
         ),
     )
     assert p("") == Handler.from_spec(None, foo=2)
     assert p("--foo a") == Handler.from_spec(None, foo="a")
-    assert p("--foo") == Handler.from_spec(None, foo=...)
+    assert p("--foo") == Handler.from_spec(None, foo=MISSING)
 
 
 def test_opt__type_T() -> None:
@@ -528,16 +528,16 @@ def test_opt__type_T__nargs() -> None:
 
 def test_opt__type_T__optional() -> None:
     p = SimpleParser(
-        foo=assert_compat[int | None | EllipsisType](
+        foo=assert_compat[int | None | Missing](
             assert_type(
                 -option("--foo", nargs="?", type=int),
-                int | None | EllipsisType,
+                int | None | Missing,
             )
         ),
     )
     assert p("") == Handler.from_spec(None, foo=None)
     assert p("--foo 2") == Handler.from_spec(None, foo=2)
-    assert p("--foo") == Handler.from_spec(None, foo=...)
+    assert p("--foo") == Handler.from_spec(None, foo=MISSING)
 
 
 def test_opt__type_T__default_str__nargs() -> None:
@@ -617,16 +617,16 @@ def test_opt__type_T__default_str__nargs() -> None:
 
 def test_opt__type_T__default_str__optional() -> None:
     p = SimpleParser(
-        foo=assert_compat[int | EllipsisType](
+        foo=assert_compat[int | Missing](
             assert_type(
                 -option("--foo", nargs="?", type=int, default="4"),
-                int | EllipsisType,
+                int | Missing,
             )
         ),
     )
     assert p("") == Handler.from_spec(None, foo=4)
     assert p("--foo 2") == Handler.from_spec(None, foo=2)
-    assert p("--foo") == Handler.from_spec(None, foo=...)
+    assert p("--foo") == Handler.from_spec(None, foo=MISSING)
 
 
 def test_opt__type_T__default_D__nargs() -> None:
@@ -751,16 +751,16 @@ def test_opt__type_T__default_D__nargs() -> None:
 
 def test_opt__type_T__default_D__optional() -> None:
     p = SimpleParser(
-        foo=assert_compat[int | EllipsisType | type[int]](
+        foo=assert_compat[int | Missing | type[int]](
             assert_type(
                 -option("--foo", nargs="?", type=int, default=int),
-                int | EllipsisType | type[int],
+                int | Missing | type[int],
             )
         ),
     )
     assert p("") == Handler.from_spec(None, foo=int)
     assert p("--foo 2") == Handler.from_spec(None, foo=2)
-    assert p("--foo") == Handler.from_spec(None, foo=...)
+    assert p("--foo") == Handler.from_spec(None, foo=MISSING)
 
 
 #
@@ -1154,7 +1154,9 @@ def test_with_another() -> None:
             assert_type(
                 -(
                     #
-                    option("--foo") | option("--bar") | option("--baz")
+                    option("--foo")
+                    | option("--bar")
+                    | option("--baz")
                 ),
                 str | None,
             )
@@ -1171,7 +1173,8 @@ def test_with_another() -> None:
             assert_type(
                 -(
                     #
-                    option("--foo", type=int, default=3.2) | option("--bar")
+                    option("--foo", type=int, default=3.2)
+                    | option("--bar")
                 ),
                 str | int | float,
             )
@@ -1186,7 +1189,8 @@ def test_with_another() -> None:
             assert_type(
                 -(
                     # mix
-                    option("--foo", type=int) | option("--bar", default=3.2)
+                    option("--foo", type=int)
+                    | option("--bar", default=3.2)
                 ),
                 str | int | None,
             )
@@ -1201,7 +1205,8 @@ def test_with_another() -> None:
             assert_type(
                 -(
                     #
-                    option("--foo", nargs=1) | option("--bar", type=int)
+                    option("--foo", nargs=1)
+                    | option("--bar", type=int)
                 ),
                 int | list[str] | None,
             )
@@ -1216,7 +1221,8 @@ def test_with_another() -> None:
             assert_type(
                 -(
                     #
-                    option("--foo", nargs=1, default=4) | option("--bar", type=int, nargs="+")
+                    option("--foo", nargs=1, default=4)
+                    | option("--bar", type=int, nargs="+")
                 ),
                 list[int] | list[str] | int,
             )
@@ -1232,7 +1238,8 @@ def test_with_another_repeated() -> None:
     assert_type(
         -(
             #
-            repeated_option("--foo") + repeated_option("--bar", type=int)
+            repeated_option("--foo")
+            + repeated_option("--bar", type=int)
         ),
         list[str | int],
     )
@@ -1240,7 +1247,8 @@ def test_with_another_repeated() -> None:
     assert_type(
         -(
             #
-            repeated_option("--foo") + repeated_option("--bar", type=int)
+            repeated_option("--foo")
+            + repeated_option("--bar", type=int)
         ),
         list[str | int],
     )
@@ -1250,7 +1258,8 @@ def test_with_another_repeated() -> None:
             assert_type(
                 (
                     #
-                    repeated_option("--foo") + repeated_option("--bar", type=int)
+                    repeated_option("--foo")
+                    + repeated_option("--bar", type=int)
                 ).t,
                 list[str | int],
             )
