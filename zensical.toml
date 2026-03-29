@@ -2,7 +2,7 @@
 site_name = "paramspecli - type-safe facade for the argparse"
 site_description = "paramspecli - type-safe facade for the argparse"
 site_author = "jkmnt"
-site_url = "https://jkmnt.github.io/paramspecli"
+site_url = "https://jkmnt.github.io/paramspecli/"
 repo_url = "https://github.com/jkmnt/paramspecli"
 
 nav = [
@@ -57,3 +57,6 @@ pygments_lang_class = true
 [project.markdown_extensions.pymdownx.inlinehilite]
 [project.markdown_extensions.pymdownx.details]
 [project.markdown_extensions.pymdownx.superfences]
+
+[project.extra.version]
+provider = "mike"
