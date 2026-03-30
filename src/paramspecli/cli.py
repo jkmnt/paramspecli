@@ -604,7 +604,8 @@ class Action[T](Opt):
 
     handler: ActionHandler[T]
 
-    __hash__ = Opt.__hash__
+    def __hash__(self) -> int:
+        return hash(self.names)
 
     def _build(self, owner: SupportsAddArgument, config: Config, *, context: Any, **kwargs: Any) -> None:
         dest = kwargs.get("dest")

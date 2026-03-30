@@ -11,7 +11,7 @@ from paramspecli import Config, Context, custom_action, option
 from .fix import Group, ensure_called, track_call
 
 try:
-    import shtab  # type: ignore
+    import shtab
 except ImportError:
     pytest.skip("not shtab, skipping completion tests", allow_module_level=True) # ty: ignore[invalid-argument-type, too-many-positional-arguments] # fmt: skip
 
