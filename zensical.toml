@@ -11,6 +11,7 @@ nav = [
     { "Advanced usage" = "advanced.md" },
     { "Generating documentation" = "doc.md" },
     { "Extending" = "extending.md" },
+    { "Recipes" = "recipes.md" },
     { "Q&A" = "qa.md" },
 ]
 

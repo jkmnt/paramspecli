@@ -11,7 +11,8 @@ from paramspecli.cli import MISSING, Missing
 from .fix import ParseError, SimpleParser, assert_compat
 
 
-def test_opt__() -> None:
+# 1. {'type': 'None = None', 'nargs': 'None = None', 'default': 'None = None'}
+def test_opt_1() -> None:
     assert_compat[str | None](
         assert_type(
             -option("--foo"),
@@ -32,7 +33,8 @@ def test_opt__() -> None:
     assert p("--foo a") == Handler.from_spec(None, foo="a")
 
 
-def test_opt__default_D() -> None:
+# 2. {'type': 'None = None', 'nargs': 'None = None', 'default': 'D'}
+def test_opt_2() -> None:
     assert_type(-option("--foo", default="1"), str)
 
     p = SimpleParser(
@@ -92,7 +94,8 @@ def test_opt__default_D() -> None:
     assert p("") == Handler.from_spec(None, foo=None)
 
 
-def test_opt__nargs() -> None:
+# 3. {'type': 'None = None', 'nargs': 'int | Literal["*", "+"]', 'default': 'None = None'}
+def test_opt_3() -> None:
     p = SimpleParser(
         foo=assert_compat[list[str] | None](
             assert_type(
@@ -132,21 +135,8 @@ def test_opt__nargs() -> None:
     assert p("--foo a b c") == Handler.from_spec(None, foo=["a", "b", "c"])
 
 
-def test_opt__optional() -> None:
-    p = SimpleParser(
-        foo=assert_compat[str | Missing | None](
-            assert_type(
-                -option("--foo", nargs="?"),
-                str | Missing | None,
-            )
-        ),
-    )
-    assert p("") == Handler.from_spec(None, foo=None)
-    assert p("--foo a") == Handler.from_spec(None, foo="a")
-    assert p("--foo") == Handler.from_spec(None, foo=MISSING)
-
-
-def test_opt__nargs__default_D() -> None:
+# 4. {'type': 'None = None', 'nargs': 'int | Literal["*", "+"]', 'default': 'D'}
+def test_opt_4() -> None:
     p = SimpleParser(
         foo=assert_compat[list[str]](
             assert_type(
@@ -229,21 +219,38 @@ def test_opt__nargs__default_D() -> None:
     assert p("--foo a") == Handler.from_spec(None, foo=["a"])
 
 
-def test_opt__optional__default_D() -> None:
+# 5. {'type': 'None = None', 'nargs': 'Literal["?"]', 'const': 'C', 'default': 'None = None'}
+def test_opt_5() -> None:
     p = SimpleParser(
-        foo=assert_compat[str | int | Missing](
+        foo=assert_compat[str | None | Missing](
             assert_type(
-                -option("--foo", nargs="?", default=2),
-                str | int | Missing,
+                -option("--foo", nargs="?", const=MISSING),
+                str | None | Missing,
+            )
+        ),
+    )
+    assert p("") == Handler.from_spec(None, foo=None)
+    assert p("--foo a") == Handler.from_spec(None, foo="a")
+    assert p("--foo") == Handler.from_spec(None, foo=MISSING)
+
+
+# 6. {'type': 'None = None', 'nargs': 'Literal["?"]', 'const': 'C', 'default': 'D'}
+def test_opt_6() -> None:
+    p = SimpleParser(
+        foo=assert_compat[str | int | float](
+            assert_type(
+                -option("--foo", nargs="?", default=2, const=3.3),
+                str | int | float,
             )
         ),
     )
     assert p("") == Handler.from_spec(None, foo=2)
     assert p("--foo a") == Handler.from_spec(None, foo="a")
-    assert p("--foo") == Handler.from_spec(None, foo=MISSING)
+    assert p("--foo") == Handler.from_spec(None, foo=3.3)
 
 
-def test_opt__type_T() -> None:
+# 7. {'type': 'TypeConverter[T]', 'nargs': 'None = None', 'default': 'None = None'}
+def test_opt_7() -> None:
     p = SimpleParser(
         foo=assert_compat[int | None](
             assert_type(
@@ -295,7 +302,8 @@ def test_opt__type_T() -> None:
     assert p("--foo a") == Handler.from_spec(None, foo=None)
 
 
-def test_opt__type_T__default_str() -> None:
+# 8. {'type': 'TypeConverter[T]', 'nargs': 'None = None', 'default': 'str'}
+def test_opt_8() -> None:
     p = SimpleParser(
         foo=assert_compat[int](
             assert_type(
@@ -332,41 +340,9 @@ def test_opt__type_T__default_str() -> None:
     assert p("") == Handler.from_spec(None, foo=["1", "1"])
     assert p("--foo 2.2") == Handler.from_spec(None, foo=["2", "2"])
 
-    p = SimpleParser(
-        foo=assert_compat[int | None](
-            assert_type(
-                -option("--foo", type=int, default=os.environ.get("__REALLY_ABSENT_ENVVAR")),
-                int | None,
-            )
-        ),
-    )
 
-    assert p("") == Handler.from_spec(None, foo=None)
-
-    p = SimpleParser(
-        foo=assert_compat[int](
-            assert_type(
-                -option("--foo", type=int, default=os.environ.get("__REALLY_ABSENT_ENVVAR", 4)),
-                int,
-            )
-        ),
-    )
-
-    assert p("") == Handler.from_spec(None, foo=4)
-
-    p = SimpleParser(
-        foo=assert_compat[int | float](
-            assert_type(
-                -option("--foo", type=int, default=os.environ.get("__REALLY_ABSENT_ENVVAR", 0) or 3.3),
-                int | float,
-            )
-        ),
-    )
-
-    assert p("") == Handler.from_spec(None, foo=3.3)
-
-
-def test_opt__type_T__default_D() -> None:
+# 9. {'type': 'TypeConverter[T]', 'nargs': 'None = None', 'default': 'D'}
+def test_opt_9() -> None:
     p = SimpleParser(
         foo=assert_compat[int | float](
             assert_type(
@@ -451,7 +427,30 @@ def test_opt__type_T__default_D() -> None:
     assert p("--foo a.b.c.d") == Handler.from_spec(None, foo=None)
 
 
-def test_opt__type_T__nargs() -> None:
+# This one is tricky - D is union.
+# In runtime it's ok. typing is off
+def test_opt_9__union() -> None:
+    p = SimpleParser(
+        foo=-option("--foo", type=int, default=os.environ.get("__REALLY_ABSENT_ENVVAR")),
+    )
+
+    assert p("") == Handler.from_spec(None, foo=None)
+
+    p = SimpleParser(
+        foo=-option("--foo", type=int, default=os.environ.get("__REALLY_ABSENT_ENVVAR", 4)),
+    )
+
+    assert p("") == Handler.from_spec(None, foo=4)
+
+    p = SimpleParser(
+        foo=-option("--foo", type=int, default=os.environ.get("__REALLY_ABSENT_ENVVAR", 0) or 3.3),
+    )
+
+    assert p("") == Handler.from_spec(None, foo=3.3)
+
+
+# 10. {'type': 'TypeConverter[T]', 'nargs': 'int | Literal["*", "+"]', 'default': 'None = None'}
+def test_opt_10() -> None:
     p = SimpleParser(
         foo=assert_compat[list[int] | None](
             assert_type(
@@ -526,21 +525,8 @@ def test_opt__type_T__nargs() -> None:
     assert p("--foo 1.1") == Handler.from_spec(None, foo=[None])
 
 
-def test_opt__type_T__optional() -> None:
-    p = SimpleParser(
-        foo=assert_compat[int | None | Missing](
-            assert_type(
-                -option("--foo", nargs="?", type=int),
-                int | None | Missing,
-            )
-        ),
-    )
-    assert p("") == Handler.from_spec(None, foo=None)
-    assert p("--foo 2") == Handler.from_spec(None, foo=2)
-    assert p("--foo") == Handler.from_spec(None, foo=MISSING)
-
-
-def test_opt__type_T__default_str__nargs() -> None:
+# 11. {'type': 'TypeConverter[T]', 'nargs': 'int | Literal["*", "+"]', 'default': 'str'}
+def test_opt_11() -> None:
     p = SimpleParser(
         foo=assert_compat[list[int] | int](
             assert_type(
@@ -615,21 +601,8 @@ def test_opt__type_T__default_str__nargs() -> None:
     assert p("--foo 2.2") == Handler.from_spec(None, foo=[None])
 
 
-def test_opt__type_T__default_str__optional() -> None:
-    p = SimpleParser(
-        foo=assert_compat[int | Missing](
-            assert_type(
-                -option("--foo", nargs="?", type=int, default="4"),
-                int | Missing,
-            )
-        ),
-    )
-    assert p("") == Handler.from_spec(None, foo=4)
-    assert p("--foo 2") == Handler.from_spec(None, foo=2)
-    assert p("--foo") == Handler.from_spec(None, foo=MISSING)
-
-
-def test_opt__type_T__default_D__nargs() -> None:
+# 12. {'type': 'TypeConverter[T]', 'nargs': 'int | Literal["*", "+"]', 'default': 'D'}
+def test_opt_12() -> None:
     p = SimpleParser(
         foo=assert_compat[list[int] | float](
             assert_type(
@@ -749,11 +722,42 @@ def test_opt__type_T__default_D__nargs() -> None:
     assert p("--foo a b") == Handler.from_spec(None, foo=[None, None])
 
 
-def test_opt__type_T__default_D__optional() -> None:
+# 13. {'type': 'TypeConverter[T]', 'nargs': 'Literal["?"]', 'const': 'C', 'default': 'None = None'}
+def test_opt_13() -> None:
+    p = SimpleParser(
+        foo=assert_compat[int | None | Missing](
+            assert_type(
+                -option("--foo", nargs="?", type=int, const=MISSING),
+                int | None | Missing,
+            )
+        ),
+    )
+    assert p("") == Handler.from_spec(None, foo=None)
+    assert p("--foo 2") == Handler.from_spec(None, foo=2)
+    assert p("--foo") == Handler.from_spec(None, foo=MISSING)
+
+
+# 14. {'type': 'TypeConverter[T]', 'nargs': 'Literal["?"]', 'const': 'C', 'default': 'str'}
+def test_opt_14() -> None:
+    p = SimpleParser(
+        foo=assert_compat[int | Missing](
+            assert_type(
+                -option("--foo", nargs="?", type=int, default="4", const=MISSING),
+                int | Missing,
+            )
+        ),
+    )
+    assert p("") == Handler.from_spec(None, foo=4)
+    assert p("--foo 2") == Handler.from_spec(None, foo=2)
+    assert p("--foo") == Handler.from_spec(None, foo=MISSING)
+
+
+# 15. {'type': 'TypeConverter[T]', 'nargs': 'Literal["?"]', 'const': 'C', 'default': 'D'}
+def test_opt_15() -> None:
     p = SimpleParser(
         foo=assert_compat[int | Missing | type[int]](
             assert_type(
-                -option("--foo", nargs="?", type=int, default=int),
+                -option("--foo", nargs="?", type=int, default=int, const=MISSING),
                 int | Missing | type[int],
             )
         ),
@@ -766,221 +770,494 @@ def test_opt__type_T__default_D__optional() -> None:
 #
 
 
-def test_repeated__() -> None:
-    assert_compat[list[str]](
-        assert_type(
-            t(repeated_option("--foo")),
-            list[str],
-        )
-    )
+# 1.
+# {'type': 'None = None', 'nargs': 'None = None', 'default': 'None = None'}
+def test_repeated_1() -> None:
+    # mypy fails to assert_compat for this line for some reason
+    assert_type(t(repeated_option("--foo")), list[str] | None)
 
     p = SimpleParser(
-        foo=assert_compat[list[str]](
+        foo=assert_compat[list[str] | None](
             assert_type(
                 -repeated_option("--foo"),
-                list[str],
+                list[str] | None,
             )
         ),
     )
-    assert p("") == Handler.from_spec(None, foo=[])
+    assert p("") == Handler.from_spec(None, foo=None)
     assert p("--foo a --foo b") == Handler.from_spec(None, foo=["a", "b"])
 
     p = SimpleParser(
-        foo=assert_compat[list[str]](
+        foo=assert_compat[list[str] | None](
             assert_type(
-                -repeated_option("--foo"),
-                list[str],
+                -repeated_option("--foo", default=None),
+                list[str] | None,
             )
         ),
     )
-    assert p("") == Handler.from_spec(None, foo=[])
+    assert p("") == Handler.from_spec(None, foo=None)
     assert p("--foo a --foo b") == Handler.from_spec(None, foo=["a", "b"])
 
+
+# 2.
+# {'type': 'None = None', 'nargs': 'None = None', 'default': 'D'}
+def test_repeated_2() -> None:
     p = SimpleParser(
-        foo=assert_compat[list[str]](
+        foo=assert_compat[list[str] | int](
             assert_type(
-                -repeated_option("--foo"),
-                list[str],
+                -repeated_option("--foo", default=22),
+                list[str] | int,
             )
         ),
     )
-    assert p("") == Handler.from_spec(None, foo=[])
+    assert p("") == Handler.from_spec(None, foo=22)
     assert p("--foo a --foo b") == Handler.from_spec(None, foo=["a", "b"])
 
 
-def test_repeated__nargs() -> None:
+# 3.
+# {'type': 'None = None', 'nargs': 'int | Literal["*", "+"]', 'flatten': 'Literal[False] = False', 'default': 'None = None'}
+def test_repeated_3() -> None:
     p = SimpleParser(
-        foo=assert_compat[list[list[str]]](
+        foo=assert_compat[list[list[str]] | None](
             assert_type(
                 -repeated_option("--foo", nargs="+"),
-                list[list[str]],
+                list[list[str]] | None,
             )
         ),
     )
-    assert p("") == Handler.from_spec(None, foo=[])
+    assert p("") == Handler.from_spec(None, foo=None)
     assert p("--foo a --foo b --foo c d") == Handler.from_spec(None, foo=[["a"], ["b"], ["c", "d"]])
 
     p = SimpleParser(
-        foo=assert_compat[list[list[str]]](
+        foo=assert_compat[list[list[str]] | None](
             assert_type(
-                -repeated_option("--foo", nargs="*"),
-                list[list[str]],
+                -repeated_option("--foo", nargs="*", default=None),
+                list[list[str]] | None,
             )
         ),
     )
-    assert p("") == Handler.from_spec(None, foo=[])
+    assert p("") == Handler.from_spec(None, foo=None)
     assert p("--foo --foo") == Handler.from_spec(None, foo=[[], []])
     assert p("--foo a --foo b --foo c d") == Handler.from_spec(None, foo=[["a"], ["b"], ["c", "d"]])
 
     p = SimpleParser(
-        foo=assert_compat[list[list[str]]](
+        foo=assert_compat[list[list[str]] | None](
             assert_type(
                 -repeated_option("--foo", flatten=False, nargs=1),
-                list[list[str]],
+                list[list[str]] | None,
             )
         ),
     )
-    assert p("") == Handler.from_spec(None, foo=[])
+    assert p("") == Handler.from_spec(None, foo=None)
     assert p("--foo a --foo b --foo c") == Handler.from_spec(None, foo=[["a"], ["b"], ["c"]])
 
 
-def test_repeated__nargs__flatten() -> None:
+# 4.
+# {'type': 'None = None', 'nargs': 'int | Literal["*", "+"]', 'flatten': 'Literal[False] = False', 'default': 'D'}
+def test_repeated_4() -> None:
     p = SimpleParser(
-        foo=assert_compat[list[str]](
+        foo=assert_compat[list[list[str]] | int](
             assert_type(
-                -repeated_option("--foo", flatten=True, nargs="+"),
-                list[str],
+                -repeated_option("--foo", nargs="+", default=22),
+                list[list[str]] | int,
             )
         ),
     )
-    assert p("") == Handler.from_spec(None, foo=[])
+    assert p("") == Handler.from_spec(None, foo=22)
+    assert p("--foo a --foo b --foo c d") == Handler.from_spec(None, foo=[["a"], ["b"], ["c", "d"]])
+
+    p = SimpleParser(
+        foo=assert_compat[list[list[str]] | int](
+            assert_type(
+                -repeated_option("--foo", nargs="*", default=22),
+                list[list[str]] | int,
+            )
+        ),
+    )
+    assert p("") == Handler.from_spec(None, foo=22)
+    assert p("--foo --foo") == Handler.from_spec(None, foo=[[], []])
+    assert p("--foo a --foo b --foo c d") == Handler.from_spec(None, foo=[["a"], ["b"], ["c", "d"]])
+
+    p = SimpleParser(
+        foo=assert_compat[list[list[str]] | int](
+            assert_type(
+                -repeated_option("--foo", flatten=False, nargs=1, default=22),
+                list[list[str]] | int,
+            )
+        ),
+    )
+    assert p("") == Handler.from_spec(None, foo=22)
+    assert p("--foo a --foo b --foo c") == Handler.from_spec(None, foo=[["a"], ["b"], ["c"]])
+
+
+# 5.
+# {'type': 'None = None', 'nargs': 'int | Literal["*", "+"]', 'flatten': 'Literal[True]', 'default': 'None = None'}
+def test_repeated_5() -> None:
+    p = SimpleParser(
+        foo=assert_compat[list[str] | None](
+            assert_type(
+                -repeated_option("--foo", flatten=True, nargs="+"),
+                list[str] | None,
+            )
+        ),
+    )
+    assert p("") == Handler.from_spec(None, foo=None)
     assert p("--foo a --foo b --foo c d") == Handler.from_spec(None, foo=["a", "b", "c", "d"])
 
     p = SimpleParser(
-        foo=assert_compat[list[str]](
+        foo=assert_compat[list[str] | None](
             assert_type(
                 -repeated_option("--foo", flatten=True, nargs="*"),
-                list[str],
+                list[str] | None,
             )
         ),
     )
-    assert p("") == Handler.from_spec(None, foo=[])
+    assert p("") == Handler.from_spec(None, foo=None)
     assert p("--foo --foo") == Handler.from_spec(None, foo=[])
     assert p("--foo a --foo b --foo c d") == Handler.from_spec(None, foo=["a", "b", "c", "d"])
 
 
-def test_repeated__type_T() -> None:
+# 6.
+# {'type': 'None = None', 'nargs': 'int | Literal["*", "+"]', 'flatten': 'Literal[True]', 'default': 'D'}
+def test_repeated_6() -> None:
     p = SimpleParser(
-        foo=assert_compat[list[int]](
+        foo=assert_compat[list[str] | int](
+            assert_type(
+                -repeated_option("--foo", flatten=True, nargs="+", default=22),
+                list[str] | int,
+            )
+        ),
+    )
+    assert p("") == Handler.from_spec(None, foo=22)
+    assert p("--foo a --foo b --foo c d") == Handler.from_spec(None, foo=["a", "b", "c", "d"])
+
+    p = SimpleParser(
+        foo=assert_compat[list[str] | int](
+            assert_type(
+                -repeated_option("--foo", flatten=True, nargs="*", default=22),
+                list[str] | int,
+            )
+        ),
+    )
+    assert p("") == Handler.from_spec(None, foo=22)
+    assert p("--foo --foo") == Handler.from_spec(None, foo=[])
+    assert p("--foo a --foo b --foo c d") == Handler.from_spec(None, foo=["a", "b", "c", "d"])
+
+
+# 7.
+# {'type': 'None = None', 'nargs': 'Literal["?"]', 'const': 'C', 'default': 'None = None'}
+def test_repeated_7() -> None:
+    p = SimpleParser(
+        foo=assert_compat[list[str | Missing] | None](
+            assert_type(
+                -repeated_option("--foo", nargs="?", const=MISSING),
+                list[str | Missing] | None,
+            )
+        ),
+    )
+    assert p("") == Handler.from_spec(None, foo=None)
+    assert p("--foo") == Handler.from_spec(None, foo=[MISSING])
+    assert p("--foo a") == Handler.from_spec(None, foo=["a"])
+    assert p("--foo --foo --foo a --foo b") == Handler.from_spec(None, foo=[MISSING, MISSING, "a", "b"])
+
+
+# 8.
+# {'type': 'None = None', 'nargs': 'Literal["?"]', 'const': 'C', 'default': 'D'}
+def test_repeated_8() -> None:
+    p = SimpleParser(
+        foo=assert_compat[list[str | Missing] | int](
+            assert_type(
+                -repeated_option("--foo", nargs="?", const=MISSING, default=2),
+                list[str | Missing] | int,
+            )
+        ),
+    )
+    assert p("") == Handler.from_spec(None, foo=2)
+    assert p("--foo") == Handler.from_spec(None, foo=[MISSING])
+    assert p("--foo a") == Handler.from_spec(None, foo=["a"])
+    assert p("--foo --foo --foo a --foo b") == Handler.from_spec(None, foo=[MISSING, MISSING, "a", "b"])
+
+
+# 9.
+# {'type': 'TypeConverter[T]', 'nargs': 'None = None', 'default': 'None = None'}
+def test_repeated_9() -> None:
+    p = SimpleParser(
+        foo=assert_compat[list[int] | None](
             assert_type(
                 -repeated_option("--foo", type=int),
-                list[int],
+                list[int] | None,
             )
         ),
     )
-    assert p("") == Handler.from_spec(None, foo=[])
-    assert p("--foo 1 --foo 2 --foo 3") == Handler.from_spec(None, foo=[1, 2, 3])
-
-    p = SimpleParser(
-        foo=assert_compat[list[int]](
-            assert_type(
-                -repeated_option("--foo", type=int, flatten=False),
-                list[int],
-            )
-        ),
-    )
-    assert p("") == Handler.from_spec(None, foo=[])
+    assert p("") == Handler.from_spec(None, foo=None)
     assert p("--foo 1 --foo 2 --foo 3") == Handler.from_spec(None, foo=[1, 2, 3])
 
 
-def test_repeated__type_T__flatten() -> None:
-    def f_int_tuple(x: str) -> tuple[int]:
-        return (int(x),)
-
+# 10.
+# {'type': 'TypeConverter[T]', 'nargs': 'None = None', 'default': 'str'}
+def test_repeated_10() -> None:
     p = SimpleParser(
-        foo=assert_compat[list[int]](
+        foo=assert_compat[list[int] | int](
             assert_type(
-                -repeated_option("--foo", type=f_int_tuple, flatten=True),
-                list[int],
+                -repeated_option("--foo", type=int, default="22"),
+                list[int] | int,
             )
         ),
     )
-    assert p("") == Handler.from_spec(None, foo=[])
+    assert p("") == Handler.from_spec(None, foo=22)
     assert p("--foo 1 --foo 2 --foo 3") == Handler.from_spec(None, foo=[1, 2, 3])
 
-    def f_2(x: str) -> str:
-        return x * 2
 
+# 11.
+# {'type': 'TypeConverter[T]', 'nargs': 'None = None', 'default': 'D'}
+def test_repeated_11() -> None:
     p = SimpleParser(
-        foo=assert_compat[list[str]](
+        foo=assert_compat[list[int] | float](
             assert_type(
-                -repeated_option("--foo", type=f_2, flatten=True),
-                list[str],
+                -repeated_option("--foo", type=int, default=3.14),
+                list[int] | float,
             )
         ),
     )
-    assert p("") == Handler.from_spec(None, foo=[])
-    assert p("--foo 1 --foo 2 --foo 3") == Handler.from_spec(None, foo=["1", "1", "2", "2", "3", "3"])
+    assert p("") == Handler.from_spec(None, foo=3.14)
+    assert p("--foo 1 --foo 2 --foo 3") == Handler.from_spec(None, foo=[1, 2, 3])
 
 
-def test_repeated__type_T__nargs() -> None:
+# 12.
+# {'type': 'TypeConverter[T]', 'nargs': 'int | Literal["*", "+"]', 'flatten': 'Literal[False] = False', 'default': 'None = None'}
+def test_repeated_12() -> None:
     p = SimpleParser(
-        foo=assert_compat[list[list[int]]](
+        foo=assert_compat[list[list[int]] | None](
             assert_type(
                 -repeated_option("--foo", type=int, nargs="+"),
-                list[list[int]],
+                list[list[int]] | None,
             )
         ),
     )
-    assert p("") == Handler.from_spec(None, foo=[])
+    assert p("") == Handler.from_spec(None, foo=None)
     assert p("--foo 1 2 --foo 3") == Handler.from_spec(None, foo=[[1, 2], [3]])
 
     p = SimpleParser(
-        foo=assert_compat[list[list[int]]](
+        foo=assert_compat[list[list[int]] | None](
             assert_type(
                 -repeated_option("--foo", type=int, nargs="*"),
-                list[list[int]],
+                list[list[int]] | None,
             )
         ),
     )
-    assert p("") == Handler.from_spec(None, foo=[])
+    assert p("") == Handler.from_spec(None, foo=None)
     assert p("--foo --foo 1 2") == Handler.from_spec(None, foo=[[], [1, 2]])
     assert p("--foo 1 2 --foo 3") == Handler.from_spec(None, foo=[[1, 2], [3]])
 
     p = SimpleParser(
-        foo=assert_compat[list[list[int]]](
+        foo=assert_compat[list[list[int]] | None](
             assert_type(
                 -repeated_option("--foo", type=int, nargs=4, flatten=False),
-                list[list[int]],
+                list[list[int]] | None,
             )
         ),
     )
-    assert p("") == Handler.from_spec(None, foo=[])
+    assert p("") == Handler.from_spec(None, foo=None)
     assert p("--foo 1 2 3 4 --foo 5 6 7 8") == Handler.from_spec(None, foo=[[1, 2, 3, 4], [5, 6, 7, 8]])
 
 
-def test_repeated__type_T__nargs__flatten() -> None:
+# 13.
+# {'type': 'TypeConverter[T]', 'nargs': 'int | Literal["*", "+"]', 'flatten': 'Literal[False] = False', 'default': 'str'}
+def test_repeated_13() -> None:
     p = SimpleParser(
-        foo=assert_compat[list[int]](
+        foo=assert_compat[list[list[int]] | int](
+            assert_type(
+                -repeated_option("--foo", type=int, nargs="+", default="22"),
+                list[list[int]] | int,
+            )
+        ),
+    )
+    assert p("") == Handler.from_spec(None, foo=22)
+    assert p("--foo 1 2 --foo 3") == Handler.from_spec(None, foo=[[1, 2], [3]])
+
+    p = SimpleParser(
+        foo=assert_compat[list[list[int]] | int](
+            assert_type(
+                -repeated_option("--foo", type=int, nargs="*", default="22"),
+                list[list[int]] | int,
+            )
+        ),
+    )
+    assert p("") == Handler.from_spec(None, foo=22)
+    assert p("--foo --foo 1 2") == Handler.from_spec(None, foo=[[], [1, 2]])
+    assert p("--foo 1 2 --foo 3") == Handler.from_spec(None, foo=[[1, 2], [3]])
+
+    p = SimpleParser(
+        foo=assert_compat[list[list[int]] | int](
+            assert_type(
+                -repeated_option("--foo", type=int, nargs=4, flatten=False, default="22"),
+                list[list[int]] | int,
+            )
+        ),
+    )
+    assert p("") == Handler.from_spec(None, foo=22)
+    assert p("--foo 1 2 3 4 --foo 5 6 7 8") == Handler.from_spec(None, foo=[[1, 2, 3, 4], [5, 6, 7, 8]])
+
+
+# 14.
+# {'type': 'TypeConverter[T]', 'nargs': 'int | Literal["*", "+"]', 'flatten': 'Literal[False] = False', 'default': 'D'}
+def test_repeated_14() -> None:
+    p = SimpleParser(
+        foo=assert_compat[list[list[int]] | float](
+            assert_type(
+                -repeated_option("--foo", type=int, nargs="+", default=3.14),
+                list[list[int]] | float,
+            )
+        ),
+    )
+    assert p("") == Handler.from_spec(None, foo=3.14)
+    assert p("--foo 1 2 --foo 3") == Handler.from_spec(None, foo=[[1, 2], [3]])
+
+    p = SimpleParser(
+        foo=assert_compat[list[list[int]] | float](
+            assert_type(
+                -repeated_option("--foo", type=int, nargs="*", default=3.14),
+                list[list[int]] | float,
+            )
+        ),
+    )
+    assert p("") == Handler.from_spec(None, foo=3.14)
+    assert p("--foo --foo 1 2") == Handler.from_spec(None, foo=[[], [1, 2]])
+    assert p("--foo 1 2 --foo 3") == Handler.from_spec(None, foo=[[1, 2], [3]])
+
+    p = SimpleParser(
+        foo=assert_compat[list[list[int]] | float](
+            assert_type(
+                -repeated_option("--foo", type=int, nargs=4, flatten=False, default=3.14),
+                list[list[int]] | float,
+            )
+        ),
+    )
+    assert p("") == Handler.from_spec(None, foo=3.14)
+    assert p("--foo 1 2 3 4 --foo 5 6 7 8") == Handler.from_spec(None, foo=[[1, 2, 3, 4], [5, 6, 7, 8]])
+
+
+# 15.
+# {'type': 'TypeConverter[T]', 'nargs': 'int | Literal["*", "+"]', 'flatten': 'Literal[True]', 'default': 'None = None'}
+def test_repeated_15() -> None:
+    p = SimpleParser(
+        foo=assert_compat[list[int] | None](
             assert_type(
                 -repeated_option("--foo", type=int, flatten=True, nargs="+"),
-                list[int],
+                list[int] | None,
             )
         )
     )
-    assert p("") == Handler.from_spec(None, foo=[])
+    assert p("") == Handler.from_spec(None, foo=None)
     assert p("--foo 1 2 3 4 --foo 5 6 7 8") == Handler.from_spec(None, foo=[1, 2, 3, 4, 5, 6, 7, 8])
 
     p = SimpleParser(
-        foo=assert_compat[list[int]](
+        foo=assert_compat[list[int] | None](
             assert_type(
-                -repeated_option("--foo", type=int, flatten=True, nargs="*"),
-                list[int],
+                -repeated_option("--foo", type=int, flatten=True, nargs="*", default=None),
+                list[int] | None,
             )
         )
     )
-    assert p("") == Handler.from_spec(None, foo=[])
+    assert p("") == Handler.from_spec(None, foo=None)
     assert p("--foo --foo 1 2 3 4 --foo --foo 5 6 7 8") == Handler.from_spec(None, foo=[1, 2, 3, 4, 5, 6, 7, 8])
+
+
+# 16.
+# {'type': 'TypeConverter[T]', 'nargs': 'int | Literal["*", "+"]', 'flatten': 'Literal[True]', 'default': 'str'}
+def test_repeated_16() -> None:
+    p = SimpleParser(
+        foo=assert_compat[list[int] | int](
+            assert_type(
+                -repeated_option("--foo", type=int, flatten=True, nargs="+", default="22"),
+                list[int] | int,
+            )
+        )
+    )
+    assert p("") == Handler.from_spec(None, foo=22)
+    assert p("--foo 1 2 3 4 --foo 5 6 7 8") == Handler.from_spec(None, foo=[1, 2, 3, 4, 5, 6, 7, 8])
+
+    p = SimpleParser(
+        foo=assert_compat[list[int] | int](
+            assert_type(
+                -repeated_option("--foo", type=int, flatten=True, nargs="*", default="22"),
+                list[int] | int,
+            )
+        )
+    )
+    assert p("") == Handler.from_spec(None, foo=22)
+    assert p("--foo --foo 1 2 3 4 --foo --foo 5 6 7 8") == Handler.from_spec(None, foo=[1, 2, 3, 4, 5, 6, 7, 8])
+
+
+# 17.
+# {'type': 'TypeConverter[T]', 'nargs': 'int | Literal["*", "+"]', 'flatten': 'Literal[True]', 'default': 'D'}
+def test_repeated_17() -> None:
+    p = SimpleParser(
+        foo=assert_compat[list[int] | float](
+            assert_type(
+                -repeated_option("--foo", type=int, flatten=True, nargs="+", default=4.33),
+                list[int] | float,
+            )
+        )
+    )
+    assert p("") == Handler.from_spec(None, foo=4.33)
+    assert p("--foo 1 2 3 4 --foo 5 6 7 8") == Handler.from_spec(None, foo=[1, 2, 3, 4, 5, 6, 7, 8])
+
+    p = SimpleParser(
+        foo=assert_compat[list[int] | float](
+            assert_type(
+                -repeated_option("--foo", type=int, flatten=True, nargs="*", default=4.33),
+                list[int] | float,
+            )
+        )
+    )
+    assert p("") == Handler.from_spec(None, foo=4.33)
+    assert p("--foo --foo 1 2 3 4 --foo --foo 5 6 7 8") == Handler.from_spec(None, foo=[1, 2, 3, 4, 5, 6, 7, 8])
+
+
+# 18.
+# {'type': 'TypeConverter[T]', 'nargs': 'Literal["?"]', 'const': 'C', 'default': 'None = None'}
+def test_repeated_18() -> None:
+    p = SimpleParser(
+        foo=assert_compat[list[int | Missing] | None](
+            assert_type(
+                -repeated_option("--foo", nargs="?", type=int, const=MISSING),
+                list[int | Missing] | None,
+            )
+        ),
+    )
+    assert p("") == Handler.from_spec(None, foo=None)
+    assert p("--foo 2 --foo 2 --foo --foo") == Handler.from_spec(None, foo=[2, 2, MISSING, MISSING])
+
+
+# 19.
+# {'type': 'TypeConverter[T]', 'nargs': 'Literal["?"]', 'const': 'C', 'default': 'str'}
+def test_repeated_19() -> None:
+    p = SimpleParser(
+        foo=assert_compat[list[int | Missing] | int](
+            assert_type(
+                -repeated_option("--foo", nargs="?", type=int, default="4", const=MISSING),
+                list[int | Missing] | int,
+            )
+        ),
+    )
+    assert p("") == Handler.from_spec(None, foo=4)
+    assert p("--foo 2 --foo 2 --foo --foo") == Handler.from_spec(None, foo=[2, 2, MISSING, MISSING])
+
+
+# 20.
+# {'type': 'TypeConverter[T]', 'nargs': 'Literal["?"]', 'const': 'C', 'default': 'D'}
+def test_repeated_20() -> None:
+    p = SimpleParser(
+        foo=assert_compat[list[int | Missing] | type[int]](
+            assert_type(
+                -repeated_option("--foo", nargs="?", type=int, default=int, const=MISSING),
+                list[int | Missing] | type[int],
+            )
+        ),
+    )
+    assert p("") == Handler.from_spec(None, foo=int)
+    assert p("--foo 2 --foo 2 --foo --foo") == Handler.from_spec(None, foo=[2, 2, MISSING, MISSING])
 
 
 ###
@@ -1100,10 +1377,10 @@ def test_choices() -> None:
     assert p("") == Handler.from_spec(None, foo=[3, 3])
 
     p = SimpleParser(
-        foo=assert_compat[list[int]](
+        foo=assert_compat[list[int] | None](
             assert_type(
                 -repeated_option("--foo", type=int, choices=(1, 2)),
-                list[int],
+                list[int] | None,
             )
         ),
     )
@@ -1217,14 +1494,15 @@ def test_with_another() -> None:
     assert p("--bar 1") == Handler.from_spec(None, foobar=1)
 
     p = SimpleParser(
-        foobar=assert_compat[list[int] | list[str] | int](
+        foobar=assert_compat[list[int] | list[str] | int | str | Missing](
             assert_type(
                 -(
                     #
                     option("--foo", nargs=1, default=4)
                     | option("--bar", type=int, nargs="+")
+                    | option("--far", nargs="?", const=MISSING)
                 ),
-                list[int] | list[str] | int,
+                list[int] | list[str] | int | str | Missing,
             )
         )
     )
@@ -1232,6 +1510,8 @@ def test_with_another() -> None:
     assert p("") == Handler.from_spec(None, foobar=4)
     assert p("--foo a") == Handler.from_spec(None, foobar=["a"])
     assert p("--bar 1 2 3 4") == Handler.from_spec(None, foobar=[1, 2, 3, 4])
+    assert p("--bar 1 2 3 4 --far") == Handler.from_spec(None, foobar=MISSING)
+    assert p("--bar 1 2 3 4 --far near") == Handler.from_spec(None, foobar="near")
 
 
 def test_with_another_repeated() -> None:
@@ -1241,7 +1521,7 @@ def test_with_another_repeated() -> None:
             repeated_option("--foo")
             + repeated_option("--bar", type=int)
         ),
-        list[str | int],
+        list[str | int] | None,
     )
 
     assert_type(
@@ -1250,28 +1530,28 @@ def test_with_another_repeated() -> None:
             repeated_option("--foo")
             + repeated_option("--bar", type=int)
         ),
-        list[str | int],
+        list[str | int] | None,
     )
 
     p = SimpleParser(
-        foobar=assert_compat[list[str | int]](
+        foobar=assert_compat[list[str | int] | None](
             assert_type(
                 (
                     #
                     repeated_option("--foo")
                     + repeated_option("--bar", type=int)
                 ).t,
-                list[str | int],
+                list[str | int] | None,
             )
         ),
     )
-    assert p("") == Handler.from_spec(None, foobar=[])
+    assert p("") == Handler.from_spec(None, foobar=None)
     assert p("--foo a") == Handler.from_spec(None, foobar=["a"])
     assert p("--bar 1") == Handler.from_spec(None, foobar=[1])
     assert p("--foo a --foo b --bar 2 --foo d --bar 3") == Handler.from_spec(None, foobar=["a", "b", 2, "d", 3])
 
     p = SimpleParser(
-        foobarbaz=assert_compat[list[list[str] | int]](
+        foobarbaz=assert_compat[list[list[str] | int] | None](
             assert_type(
                 -(
                     #
@@ -1279,11 +1559,11 @@ def test_with_another_repeated() -> None:
                     + repeated_option("--bar", type=int)
                     + repeated_option("--baz", nargs="+")
                 ),
-                list[list[str] | int],
+                list[list[str] | int] | None,
             )
         ),
     )
-    assert p("") == Handler.from_spec(None, foobarbaz=[])
+    assert p("") == Handler.from_spec(None, foobarbaz=None)
     assert p("--foo a b --foo c d") == Handler.from_spec(None, foobarbaz=[["a", "b"], ["c", "d"]])
     assert p("--bar 1") == Handler.from_spec(None, foobarbaz=[1])
     assert p("--baz x y") == Handler.from_spec(None, foobarbaz=[["x", "y"]])
@@ -1292,25 +1572,28 @@ def test_with_another_repeated() -> None:
     )
 
     p = SimpleParser(
-        foobarbaz=assert_compat[list[str | int | list[str]]](
+        foobarbaz=assert_compat[list[str | int | list[str] | Missing] | None](
             assert_type(
                 -(
                     #
                     repeated_option("--foo", nargs=2, flatten=True)
                     + repeated_option("--bar", type=int)
                     + repeated_option("--baz", nargs="+")
+                    + repeated_option("--faz", nargs="?", const=MISSING)
                 ),
-                list[str | int | list[str]],
+                list[str | int | list[str] | Missing] | None,
             )
         ),
     )
-    assert p("") == Handler.from_spec(None, foobarbaz=[])
+    assert p("") == Handler.from_spec(None, foobarbaz=None)
     assert p("--foo a b --foo c d") == Handler.from_spec(None, foobarbaz=["a", "b", "c", "d"])
     assert p("--bar 1") == Handler.from_spec(None, foobarbaz=[1])
     assert p("--baz x y") == Handler.from_spec(None, foobarbaz=[["x", "y"]])
     assert p("--foo a b --foo c d --bar 1 --baz x y --bar 1") == Handler.from_spec(
         None, foobarbaz=["a", "b", "c", "d", 1, ["x", "y"], 1]
     )
+    assert p("--faz x") == Handler.from_spec(None, foobarbaz=["x"])
+    assert p("--faz --faz") == Handler.from_spec(None, foobarbaz=[MISSING, MISSING])
 
 
 def test_required() -> None:
@@ -1353,10 +1636,10 @@ def test_t() -> None:
     assert_type(t @ (option("--foo") | option("--bar", type=int)), str | int | None)
     assert_type((option("--foo") | option("--bar", type=int)) @ t, str | int | None)
 
-    assert_type(t(repeated_option("--foo") + repeated_option("--bar", type=int)), list[str | int])
-    assert_type(t[repeated_option("--foo") + repeated_option("--bar", type=int)], list[str | int])
-    assert_type(t @ (repeated_option("--foo") + repeated_option("--bar", type=int)), list[str | int])
-    assert_type((repeated_option("--foo") + repeated_option("--bar", type=int)) @ t, list[str | int])
+    assert_type(t(repeated_option("--foo") + repeated_option("--bar", type=int)), list[str | int] | None)
+    assert_type(t[repeated_option("--foo") + repeated_option("--bar", type=int)], list[str | int] | None)
+    assert_type(t @ (repeated_option("--foo") + repeated_option("--bar", type=int)), list[str | int] | None)
+    assert_type((repeated_option("--foo") + repeated_option("--bar", type=int)) @ t, list[str | int] | None)
 
 
 def test_cmp() -> None:

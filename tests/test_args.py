@@ -6,7 +6,9 @@ from paramspecli import Handler, argument
 from .fix import SimpleParser, assert_compat
 
 
-def test__() -> None:
+# 1.
+# {'type': 'None', 'nargs': 'None'}
+def test_1() -> None:
     p = SimpleParser(
         assert_compat[str](
             assert_type(
@@ -18,6 +20,8 @@ def test__() -> None:
     assert p("a") == Handler.from_spec(None, "a")
 
 
+# 2.
+# {'type': 'None', 'nargs': 'int | Literal["*", "+"]'}
 def test__nargs() -> None:
     p = SimpleParser(
         assert_compat[list[str]](
@@ -52,7 +56,9 @@ def test__nargs() -> None:
     assert p("a b") == Handler.from_spec(None, ["a", "b"])
 
 
-def test__optional() -> None:
+# 3.
+# {'type': 'None', 'nargs': 'Literal["?"]', 'default': 'None'}
+def test_3() -> None:
     p = SimpleParser(
         assert_compat[str | None](
             assert_type(
@@ -65,7 +71,9 @@ def test__optional() -> None:
     assert p("a") == Handler.from_spec(None, "a")
 
 
-def test__optional__default_D() -> None:
+# 4.
+# {'type': 'None', 'nargs': 'Literal["?"]', 'default': 'D'}
+def test_4() -> None:
     p = SimpleParser(
         assert_compat[str | int](
             assert_type(
@@ -78,7 +86,9 @@ def test__optional__default_D() -> None:
     assert p("a") == Handler.from_spec(None, "a")
 
 
-def test__type_T() -> None:
+# 5.
+# {'type': 'TypeConverter[T]', 'nargs': 'None'}
+def test_5() -> None:
     p = SimpleParser(
         assert_compat[int](
             assert_type(
@@ -90,7 +100,9 @@ def test__type_T() -> None:
     assert p("123") == Handler.from_spec(None, 123)
 
 
-def test__type_T__nargs() -> None:
+# 6.
+# {'type': 'TypeConverter[T]', 'nargs': 'int | Literal["*", "+"]'}
+def test_6() -> None:
     p = SimpleParser(
         assert_compat[list[int]](
             assert_type(
@@ -112,7 +124,9 @@ def test__type_T__nargs() -> None:
     assert p("123 456") == Handler.from_spec(None, [123, 456])
 
 
-def test__type_T__optional() -> None:
+# 7.
+# {'type': 'TypeConverter[T]', 'nargs': 'Literal["?"', 'default': 'None'}
+def test_7() -> None:
     p = SimpleParser(
         assert_compat[int | None](
             assert_type(
@@ -125,7 +139,9 @@ def test__type_T__optional() -> None:
     assert p("123") == Handler.from_spec(None, 123)
 
 
-def test__type_T__optional__str() -> None:
+# 8.
+# {'type': 'TypeConverter[T]', 'nargs': 'Literal["?"', 'default': 'str'}
+def test_8() -> None:
     p = SimpleParser(
         assert_compat[int](
             assert_type(
@@ -138,7 +154,9 @@ def test__type_T__optional__str() -> None:
     assert p("123") == Handler.from_spec(None, 123)
 
 
-def test__type_T__optional__default_D() -> None:
+# 9.
+# {'type': 'TypeConverter[T]', 'nargs': 'Literal["?"', 'default': 'D'}
+def test_9() -> None:
     p = SimpleParser(
         assert_compat[int | type[int]](
             assert_type(
@@ -150,24 +168,17 @@ def test__type_T__optional__default_D() -> None:
     assert p("") == Handler.from_spec(None, int)
     assert p("123") == Handler.from_spec(None, 123)
 
+
+# 9.1, typing is off here, it fails
+def test_9_union() -> None:
     p = SimpleParser(
-        assert_compat[int | None](
-            assert_type(
-                -argument("foo", type=int, nargs="?", default=os.environ.get("__REALLY_ABSENT_ENVVAR")),
-                int | None,
-            )
-        ),
+        -argument("foo", type=int, nargs="?", default=os.environ.get("__REALLY_ABSENT_ENVVAR")),
     )
 
     assert p("") == Handler.from_spec(None, None)
 
     p = SimpleParser(
-        assert_compat[int](
-            assert_type(
-                -argument("--foo", type=int, nargs="?", default=os.environ.get("__REALLY_ABSENT_ENVVAR", 4)),
-                int,
-            )
-        ),
+        -argument("--foo", type=int, nargs="?", default=os.environ.get("__REALLY_ABSENT_ENVVAR", 4)),
     )
 
     assert p("") == Handler.from_spec(None, 4)

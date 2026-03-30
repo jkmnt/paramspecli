@@ -56,9 +56,9 @@ In most cases Option resulting type would be Union\[_T_, _D_\]. _D_ is starting 
 ---
 
 _class_ **Option**\[_T_, _D_\](_names, \*, conv=None, help=None, nargs=None, default=None, const=None,
-required=False, choices=None, metavar=None, action=None, deprecated=False, extra=None_)
+required=False, choices=None, metavar=None, action=None, deprecated=False, extra=None, inject=None_)
 
-_class_ **Argument**\[_T_, _D_\](_metavar, \*, conv=None, help=None, nargs=None, choices=None, default=None, extra=None_)
+_class_ **Argument**\[_T_, _D_\](_metavar, \*, conv=None, help=None, nargs=None, choices=None, default=None, extra=None, inject=None_)
 
 - _names_ - tuple of names
 - _conv_ - type converter
@@ -77,22 +77,8 @@ _class_ **Argument**\[_T_, _D_\](_metavar, \*, conv=None, help=None, nargs=None,
     - str: show this very string
 - _required_, _choices_, _metavar_, _action_, _nargs_, _default_, _const_, _deprecated_ - forwarded to the `ArgumentParser.add_argument()`
 - _extra_ - dict of extra \*\*kwargs for the `ArgumentParser.add_argument()`
+- _inject_ - dict of attributes to set on `arparse.Action` instance
 
 ---
 
 If option is repeated (that is, action is `extend`, `append`, or `append_const`), factory should return the `RepeatedOption[T]` class. This is a list-producing variant of `Option`.
-
-## Actions
-
-Custom actions should return the instance of the `Action` class. The `Action` has a same constructor as an `Option`, but since actions are not bound to parameters, there is no need for type specialization.
-
-This is how the [version_action()](advanced.md#actions) factory function is defined:
-
-```python
-def version_action(
-    version: str,
-    *,
-    help: str | Markup | bool = "Show program's version number and exit"
-) -> Action:
-    return Action(("--version",), action="version", help=help, extra={"version": version})
-```

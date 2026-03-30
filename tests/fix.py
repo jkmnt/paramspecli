@@ -1,4 +1,5 @@
 import dataclasses
+import os
 import shlex
 from argparse import ArgumentParser
 from contextlib import contextmanager
@@ -106,3 +107,19 @@ class assert_compat[T]:
 
 
 ensure_exit = pytest.raises(ParseExit)
+
+
+@contextmanager
+def set_env(key: str, value: str | None) -> Generator[None, None, None]:
+    was = os.environ.get(key, ...)
+    if value is not None:
+        os.environ[key] = value
+    else:
+        os.environ.pop(key, None)
+    try:
+        yield
+    finally:
+        if was is not ...:
+            os.environ[key] = was
+        else:
+            os.environ.pop(key, None)

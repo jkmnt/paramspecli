@@ -215,7 +215,6 @@ def test_third_party() -> None:
 
 
 def test_ignore_args_command() -> None:
-
     def f1(a: str, *, foo: int | None) -> None: ...
 
     cli = Command(f1, info="prog")
@@ -234,7 +233,6 @@ def test_ignore_args_command() -> None:
 
 
 def test_ignore_args_group() -> None:
-
     cli = Group(info="prog")
     cfg = Config(ignore_unknown_args=True)
 

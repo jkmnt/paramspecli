@@ -91,7 +91,7 @@ Now let's take a closer look at the building blocks.
 ## Arguments
 
 Arguments are instances of the `Argument` class. They are created by the `argument` factory function.
-Arguments are positional-only, and it's an error to bind it by keyword.
+Arguments are positional-only, and it's an error to bind them by keyword.
 
 ---
 
@@ -122,7 +122,7 @@ Arguments are positional-only, and it's an error to bind it by keyword.
 ## Options
 
 Options are instances of the `Option` class. They are created by one of factory functions.
-Options are keyword-only, and it's an error to bind it positionally.
+Options are keyword-only, and it's an error to bind them positionally.
 
 ### option
 
@@ -130,18 +130,19 @@ Tries to consume a word from the command line. Result is a (type converted) word
 
 ---
 
-**option**(_\*names, type=None, help=None, default=None, nargs=None, choices=None, metavar=None, show_default=None_)
+**option**(_\*names, type=None, nargs=None, default=None, const=None, help=None, choices=None, metavar=None, show_default=None_)
 
-- _names_ - one or more names on a command line. Should start from the `-`, for example, `--foo`, `-g`.
+- _names_ - one or more names on a command line. Should start from the `-`, for example, `--foo`, `-g`
 - _type_ - callable to convert string into the parameter type
-- _help_ - help string. Also may be set to `False` hide option from `--help`.
-- _default_ - result if option is missing. May be anything. If _default_ is a string, it will be converted by _type()_, otherwise left as is.
 - _nargs_:
     - int: Consume fixed number of words
     - `+`: Consume one or more words
     - `*`: Consume zero or more words
-    - `?`: Consume zero or one word. If zero, `...` (ellipsis) is returned instead.
-- _choices_ - Iterable of allowed values.
+    - `?`: Consume zero or one word. If zero, _const_ is returned instead
+- _default_ - result if option is missing. May be anything. If _default_ is a string, it will be converted by _type()_, otherwise left as is.
+- _const_: Result for `?` option if no words present
+- _help_ - help string. Also may be set to `False` hide option from `--help`
+- _choices_ - Iterable of allowed values
 - _metavar_ - meta-variable string. If nargs is a fixed number, may be a tuple of strings.
 - _show_default_ - show default value in help:
     - `True`: show _default_ value
@@ -149,48 +150,49 @@ Tries to consume a word from the command line. Result is a (type converted) word
     - `None`: show _default_ if it makes sense
     - str: show this very string
 
-| Code                                                     | Command line             | Result                       |
-| -------------------------------------------------------- | ------------------------ | ---------------------------- |
-| `#!python option("--addr")`                              | `--addr www.example.com` | `#!python "www.example.com"` |
-|                                                          | ` `                      | `#!python None`              |
-| `#!python option("--width", type=int, default=80)`       | `--width 120`            | `#!python 120`               |
-|                                                          | ` `                      | `#!python 80`                |
-| `#!python option("--user", nargs="+")`                   |                          |                              |
-|                                                          | `--user bob`             | `#!python ["bob"]`           |
-|                                                          | `--user bob alice`       | `#!python ["bob", "alice"]`  |
-|                                                          | ` `                      | `#!python None`              |
-| `#!python option("--xyz", nargs=3, type=int)`            | `--xyz 0 5 -1`           | `#!python [0, 5, -1]`        |
-| `#!python option("--threads", nargs="?", type=int)`      | `--threads 2`            | `#!python 2`                 |
-|                                                          | `--threads`              | `#!python ...`               |
-|                                                          | ` `                      | `#!python None`              |
-| `#!python option("--day", choices=("sunday", "monday"))` | `--day sunday`           | `#!python "sunday"`          |
-|                                                          | `--day monday`           | `#!python "monday"`          |
-|                                                          | ` `                      | `#!python None`              |
+| Code                                                              | Command line             | Result                       |
+| ----------------------------------------------------------------- | ------------------------ | ---------------------------- |
+| `#!python option("--addr")`                                       | `--addr www.example.com` | `#!python "www.example.com"` |
+|                                                                   | ` `                      | `#!python None`              |
+| `#!python option("--width", type=int, default=80)`                | `--width 120`            | `#!python 120`               |
+|                                                                   | ` `                      | `#!python 80`                |
+| `#!python option("--user", nargs="+")`                            |                          |                              |
+|                                                                   | `--user bob`             | `#!python ["bob"]`           |
+|                                                                   | `--user bob alice`       | `#!python ["bob", "alice"]`  |
+|                                                                   | ` `                      | `#!python None`              |
+| `#!python option("--xyz", nargs=3, type=int)`                     | `--xyz 0 5 -1`           | `#!python [0, 5, -1]`        |
+| `#!python option("--threads", nargs="?", type=int, const="auto")` | `--threads 2`            | `#!python 2`                 |
+|                                                                   | `--threads`              | `#!python "auto"`            |
+|                                                                   | ` `                      | `#!python None`              |
+| `#!python option("--day", choices=("sunday", "monday"))`          | `--day sunday`           | `#!python "sunday"`          |
+|                                                                   | `--day monday`           | `#!python "monday"`          |
+|                                                                   | ` `                      | `#!python None`              |
 
 ### repeated_option
 
 Like [option](#option), but allowed to present multiple times on a command line.
-Result is a list of (type converted) words. If missing, result is an empty list.
+Result is a list of (type converted) words. If missing, result is _default_.
 
 ---
 
-**repeated_option**(_names, \*, type=None, help=None, nargs=None, choices=None, flatten=False, metavar=None_)
+**repeated_option**(_names, \*, type=None, nargs=None, default=None, const=None, help=None, choices=None, flatten=False, metavar=None_)
 
-- _names_, _type_, _help_, _choices_, _metavar_, _show_default_ - see [option](#option)
-- _nargs_ - int, `+` or `*`. Consume fixed or unlimited number of words for each option occurence.
-- _flatten_ - Meaningful only if _nargs_ set. Flattens the individual lists into the
-  single list. Under the hood, it switches the argparse action from `append` to the `extend`.
+- _names_, _type_, _nargs_, _default_, _const_, _help_, _choices_, _metavar_, _show_default_ - see [option](#option)
+- _flatten_ - Meaningful only if _nargs_ set. Flattens the individual lists into the single list.
 
 | Code                                                                    | Command line                 | Result                          |
 | ----------------------------------------------------------------------- | ---------------------------- | ------------------------------- |
 | `#!python repeated_option("--port", type=int)`                          | `--port 80 --port 8080`      | `#!python [80, 8080]`           |
-|                                                                         | ` `                          | `#!python []`                   |
-| `#!python repeated_option("--port", type=int, nargs="+")`               | `--port 80`                  | `#!python [[80]]`               |
+|                                                                         | ` `                          | `#!python None`                 |
+| `#!python repeated_option("--port", type=int, nargs="+", default=[])`   | `--port 80`                  | `#!python [[80]]`               |
 |                                                                         | `--port 80 --port 8080 8081` | `#!python [[80], [8080, 8081]]` |
 |                                                                         | ` `                          | `#!python []`                   |
 | `#!python repeated_option("--port", type=int, nargs="+", flatten=True)` | `--port 80`                  | `#!python [[80]]`               |
 |                                                                         | `--port 80 --port 8080 8081` | `#!python [80, 8080, 8081]`     |
-|                                                                         | ` `                          | `#!python []`                   |
+|                                                                         | ` `                          | `#!python None`                 |
+| `#!python repeated_option("--port", type=int, nargs="?", const="auto")` | `--port 80`                  | `#!python [80]`                 |
+|                                                                         | `--port --port 80`           | `#!python ["auto", 80]`         |
+|                                                                         | ` `                          | `#!python None`                 |
 
 ---
 
@@ -204,7 +206,7 @@ Simple flag. Result is _value_. If missing, result is _default_.
 
 - _names_, _help_, _show_default_ - see [option](#option)
 - _value_ - result if flag is present. May be anything.
-- _default_ - result if flag is missing. If not set, choosen automatically between `True`, `False` and `None`
+- _default_ - result if flag is missing. If not set, chosen automatically between `True`, `False` and `None`
   depending on a _value_
 
 | Code                                                         | Command line | Result               |
@@ -243,7 +245,7 @@ A `--foo/--no-foo` style complimentary flags. Result is `True` or `False` depend
 
 ### count
 
-A `-vvv` style flag. Result is a number of the flag occurences.
+A `-vvv` style flag. Result is a number of the flag occurrences.
 If missing, result is _default_
 
 ---
@@ -265,24 +267,25 @@ If missing, result is _default_
 ### repeated_flag
 
 Like a flag, but may present multiple times on a command line.
-Result is a list of _value_. If missing, result is an empty list.
+Result is a list of _value_. If missing, result is _default_.
 Repeated flags are most useful if [mixed](advanced.md#mixed-options).
 
 ---
 
-**repeated_flag**(_names, \*, help=None, value=True_)
+**repeated_flag**(_names, \*, help=None, value=True, default=None_)
 
 - _names_, _help_ - see [option](#option)
-- _value_ - value to append to the result list for each flag occurence. May be anything.
+- _value_ - value to append to the result list for each flag occurrence. May be anything.
+- _default_ - result if option is missing. May be anything.
 
-| Code                                             | Command line    | Result                      |
-| ------------------------------------------------ | --------------- | --------------------------- |
-| `#!python repeated_flag("--hard")`               | `--hard`        | `#!python [True]`           |
-|                                                  | `--hard --hard` | `#!python [True, True]`     |
-|                                                  | ` `             | `#!python []`               |
-| `#!python repeated_flag("--hard", value="core")` | `--hard`        | `#!python ["core"]`         |
-|                                                  | `--hard --hard` | `#!python ["core", "core"]` |
-|                                                  | ` `             | `#!python []`               |
+| Code                                                             | Command line    | Result                      |
+| ---------------------------------------------------------------- | --------------- | --------------------------- |
+| `#!python repeated_flag("--hard")`                               | `--hard`        | `#!python [True]`           |
+|                                                                  | `--hard --hard` | `#!python [True, True]`     |
+|                                                                  | ` `             | `#!python None`             |
+| `#!python repeated_flag("--hard", value="core", default="soft")` | `--hard`        | `#!python ["core"]`         |
+|                                                                  | `--hard --hard` | `#!python ["core", "core"]` |
+|                                                                  | ` `             | `#!python "soft"`           |
 
 ---
 
@@ -445,7 +448,7 @@ Group.**parse**(_input=None, \*, config=None, context=None_)
 
 Command.**parse**(_input=None, \*, config=None, context=None_)
 
-- _input_ - Sequence of strings to parse. Defaults to sys.argv if None.
+- _input_ - Sequence of strings to parse. Defaults to `sys.argv` if None.
 - _config_ - [argparse 'compilation' settings](advanced.md#configuration)
 - _context_ - Optional context object to communicate between groups and commands
 

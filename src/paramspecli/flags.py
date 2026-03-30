@@ -1,7 +1,7 @@
 from argparse import BooleanOptionalAction
-from typing import Any, Literal, overload
+from typing import Any, overload
 
-from .cli import MISSING
+from .cli import MISSING, AppendConstAction, Markup
 from .fake import Option, RepeatedOption
 
 
@@ -11,7 +11,7 @@ from .fake import Option, RepeatedOption
 def flag(  # type: ignore[overload-overlap]
     *names: str,
     value: bool = True,
-    help: str | Literal[False] | None = None,
+    help: str | bool | Markup | None = None,
     show_default: bool | str | None = None,
 ) -> Option[bool, bool]: ...
 
@@ -22,7 +22,7 @@ def flag(  # type: ignore[overload-overlap]
 def flag[T](
     *names: str,
     value: T,
-    help: str | Literal[False] | None = None,
+    help: str | bool | Markup | None = None,
     show_default: bool | str | None = None,
 ) -> Option[T, None]: ...
 
@@ -34,7 +34,7 @@ def flag[T, D](
     *names: str,
     value: T,
     default: D,
-    help: str | Literal[False] | None = None,
+    help: str | bool | Markup | None = None,
     show_default: bool | str | None = None,
 ) -> Option[T, D]: ...
 
@@ -46,17 +46,16 @@ def flag[D](
     *names: str,
     default: D,
     value: bool = True,
-    help: str | Literal[False] | None = None,
+    help: str | bool | Markup | None = None,
     show_default: bool | str | None = None,
 ) -> Option[bool, D]: ...
 
 
-# NOTE: using singleton ellipsis here as the sentinel
 def flag(
     *names: str,
     value: Any = True,
     default: Any = MISSING,
-    help: str | bool | None = None,
+    help: str | bool | Markup | None = None,
     show_default: bool | str | None = None,
 ) -> Option[Any, Any]:
     """flag
@@ -109,7 +108,7 @@ def flag(
 def switch(
     *names: str,
     default: bool = False,
-    help: str | Literal[False] | None = None,
+    help: str | bool | Markup | None = None,
     show_default: bool | str | None = None,
 ) -> Option[bool, bool]: ...
 
@@ -119,7 +118,7 @@ def switch(
 def switch[D](
     *names: str,
     default: D,
-    help: str | Literal[False] | None = None,
+    help: str | bool | Markup | None = None,
     show_default: bool | str | None = None,
 ) -> Option[bool, D]: ...
 
@@ -127,7 +126,7 @@ def switch[D](
 def switch(
     *names: str,
     default: Any = False,
-    help: str | bool | None = None,
+    help: str | bool | Markup | None = None,
     show_default: bool | str | None = None,
 ) -> Option[bool, Any]:
     """On/Off switch with complimentary flags: `--foo/--no-foo`. Default is `False`"""
@@ -148,7 +147,7 @@ def switch(
 def count(
     *names: str,
     default: int = 0,
-    help: str | Literal[False] | None = None,
+    help: str | bool | Markup | None = None,
     show_default: bool | str | None = None,
 ) -> Option[int, int]: ...
 
@@ -158,7 +157,7 @@ def count(
 def count(
     *names: str,
     default: None,
-    help: str | Literal[False] | None = None,
+    help: str | bool | Markup | None = None,
     show_default: bool | str | None = None,
 ) -> Option[int, None]: ...
 
@@ -166,7 +165,7 @@ def count(
 def count(
     *names: str,
     default: int | None = 0,
-    help: str | bool | None = None,
+    help: str | bool | Markup | None = None,
     show_default: bool | str | None = None,
 ) -> Option[int, Any]:
     """Counter: `-vvv`. Default is `0`"""
@@ -181,13 +180,17 @@ def count(
     )
 
 
+## ---
+
+
 ##
 @overload
 def repeated_flag(
     *names: str,
     value: bool = True,
-    help: str | Literal[False] | None = None,
-) -> RepeatedOption[bool]: ...
+    default: None = None,
+    help: str | bool | Markup | None = None,
+) -> RepeatedOption[bool, None]: ...
 
 
 # value: T
@@ -195,23 +198,45 @@ def repeated_flag(
 def repeated_flag[T](
     *names: str,
     value: T,
-    help: str | Literal[False] | None = None,
-) -> RepeatedOption[T]: ...
+    default: None = None,
+    help: str | bool | Markup | None = None,
+) -> RepeatedOption[T, None]: ...
+
+
+##
+@overload
+def repeated_flag[D](
+    *names: str,
+    value: bool = True,
+    default: D,
+    help: str | bool | Markup | None = None,
+) -> RepeatedOption[bool, D]: ...
+
+
+# value: T
+@overload
+def repeated_flag[T, D](
+    *names: str,
+    value: T,
+    default: D,
+    help: str | bool | Markup | None = None,
+) -> RepeatedOption[T, D]: ...
 
 
 def repeated_flag(
     *names: str,
     value: Any = True,
-    help: str | bool | None = None,
-) -> RepeatedOption[Any]:
+    default: Any = None,
+    help: str | bool | Markup | None = None,
+) -> RepeatedOption[Any, Any]:
     """Flag which could be present multiple times on a command line.
     Each appearance adds `value` to the list.
     """
     return RepeatedOption(
         names,
         help=help,
-        action="append_const",
-        default=[],
+        action=AppendConstAction,
+        default=default,
         const=value,
         soft_show_default=False,
     )

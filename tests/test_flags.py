@@ -212,14 +212,29 @@ def test_count__default_None() -> None:
 
 def test_repeated_flag__() -> None:
     p = SimpleParser(
-        foo=assert_compat[list[bool]](
+        foo=assert_compat[list[bool] | None](
             assert_type(
                 -repeated_flag("--foo"),
-                list[bool],
+                list[bool] | None,
             )
         ),
     )
-    assert p("") == Handler.from_spec(None, foo=[])
+    assert p("") == Handler.from_spec(None, foo=None)
+    assert p("--foo") == Handler.from_spec(None, foo=[True])
+    assert p("--foo --foo") == Handler.from_spec(None, foo=[True] * 2)
+    assert p("--foo " * 32) == Handler.from_spec(None, foo=[True] * 32)
+
+
+def test_repeated_flag__default_D() -> None:
+    p = SimpleParser(
+        foo=assert_compat[list[bool] | str](
+            assert_type(
+                -repeated_flag("--foo", default="nope"),
+                list[bool] | str,
+            )
+        ),
+    )
+    assert p("") == Handler.from_spec(None, foo="nope")
     assert p("--foo") == Handler.from_spec(None, foo=[True])
     assert p("--foo --foo") == Handler.from_spec(None, foo=[True] * 2)
     assert p("--foo " * 32) == Handler.from_spec(None, foo=[True] * 32)
@@ -227,14 +242,29 @@ def test_repeated_flag__() -> None:
 
 def test_repeated_flag__value_T() -> None:
     p = SimpleParser(
-        foo=assert_compat[list[int]](
+        foo=assert_compat[list[int] | None](
             assert_type(
                 -repeated_flag("--foo", value=12),
-                list[int],
+                list[int] | None,
             )
         ),
     )
-    assert p("") == Handler.from_spec(None, foo=[])
+    assert p("") == Handler.from_spec(None, foo=None)
+    assert p("--foo") == Handler.from_spec(None, foo=[12])
+    assert p("--foo --foo") == Handler.from_spec(None, foo=[12] * 2)
+    assert p("--foo " * 32) == Handler.from_spec(None, foo=[12] * 32)
+
+
+def test_repeated_flag__value_T__default_D() -> None:
+    p = SimpleParser(
+        foo=assert_compat[list[int] | str](
+            assert_type(
+                -repeated_flag("--foo", value=12, default="nope"),
+                list[int] | str,
+            )
+        ),
+    )
+    assert p("") == Handler.from_spec(None, foo="nope")
     assert p("--foo") == Handler.from_spec(None, foo=[12])
     assert p("--foo --foo") == Handler.from_spec(None, foo=[12] * 2)
     assert p("--foo " * 32) == Handler.from_spec(None, foo=[12] * 32)
@@ -281,17 +311,37 @@ def test_with_another() -> None:
 
 def test_with_another_repeated() -> None:
     p = SimpleParser(
-        foobar=assert_compat[list[str | int]](
+        foobar=assert_compat[list[str | int] | None](
             assert_type(
                 -(
                     #
-                    repeated_flag("--foo", value="a") + repeated_flag("--bar", value=12)
+                    repeated_flag("--foo", value="a")
+                    + repeated_flag("--bar", value=12)
                 ),
-                list[str | int],
+                list[str | int] | None,
             )
         )
     )
-    assert p("") == Handler.from_spec(None, foobar=[])
+    assert p("") == Handler.from_spec(None, foobar=None)
+    assert p("--foo") == Handler.from_spec(None, foobar=["a"])
+    assert p("--bar") == Handler.from_spec(None, foobar=[12])
+    assert p("--foo --foo --bar --foo") == Handler.from_spec(None, foobar=["a", "a", 12, "a"])
+
+
+def test_with_another_repeated__default_D() -> None:
+    p = SimpleParser(
+        foobar=assert_compat[list[str | int] | float](
+            assert_type(
+                -(
+                    #
+                    repeated_flag("--foo", value="a", default=3.14)
+                    + repeated_flag("--bar", value=12, default=4.33)
+                ),
+                list[str | int] | float,
+            )
+        )
+    )
+    assert p("") == Handler.from_spec(None, foobar=3.14)
     assert p("--foo") == Handler.from_spec(None, foobar=["a"])
     assert p("--bar") == Handler.from_spec(None, foobar=[12])
     assert p("--foo --foo --bar --foo") == Handler.from_spec(None, foobar=["a", "a", 12, "a"])

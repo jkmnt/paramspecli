@@ -37,7 +37,7 @@ Repeated options are mixed by the `+` operator. All options go into the resultin
 Here, the _praises_ parameter may contain any number of `--small`, `--fast`, or `--reliable` options values:
 
 ```python
-def sqlite(*, praises: list[int | str]):
+def sqlite(*, praises: list[int | str] | None):
     pass
 
 Command(sqlite).bind(
@@ -55,15 +55,15 @@ Command(sqlite).bind(
 | `#!python repeated_option("--pid", type=int)` <br /> + `#!python repeated_option("--prog")`               | `--pid 123`                        | `#!python [123]`                |
 |                                                                                                           | `--prog cat`                       | `#!python ["cat"]`              |
 |                                                                                                           | `--pid 123 --prog cat --prog sudo` | `#!python [123, "cat", "sudo"]` |
-|                                                                                                           | ` `                                | `#!python []`                   |
+|                                                                                                           | ` `                                | `#!python None`                 |
 | `#!python repeated_flag("--python", value="py")` <br /> + `#!python repeated_flag("--rust", value=False)` | `--python --rust --rust`           | `#!python ["py", False, False]` |
-|                                                                                                           | ` `                                | `#!python []`                   |
+|                                                                                                           | ` `                                | `#!python None`                 |
 
 ## Help sections
 
 It's common to have `--help` with options sorted by sections: basic, experimental, reports, logging, etc.
 
-Options are included in sections by a nice subcription syntax.
+Options are included in sections by a nice subscription syntax.
 Or by calling the `include()` method of section.
 
 ```python
@@ -116,7 +116,7 @@ Group.**add_section**(_title, \*, headline=None_)
 Some options could be made mutually exclusive by placing them in the `Oneof` section.
 Options are included in `Oneof` by a wrapping call, or by oneof's `include()` method.
 
-Here, `--fast` and `--cheap` options are mutually excluse. `--http` and `--https` options
+Here, `--fast` and `--cheap` options are mutually exclusive. `--http` and `--https` options
 are forbidden to use together too:
 
 ```python
@@ -180,7 +180,7 @@ paramspecli includes a handy [pathlib.Path](https://docs.python.org/3/library/pa
 
 _class_ **PathConv**(_kind=None, \*, exists=None, resolve=True_)
 
-- _kind_ - `"file"`, `"dir"` or `None` (don't care). Checks path type if appliable.
+- _kind_ - `"file"`, `"dir"` or `None` (don't care). Checks path type if applicable.
 - _exists_ - check the path existence
     - `True`: path should exist
     - `False`: path should not exist
@@ -240,9 +240,9 @@ with cli.add_command("f", f) as cmd:
     cmd.bind()
 ```
 
-Each handler parameters are isolated from each other and reside in own namespace.
+Each handler's parameters are isolated and reside in own namespaces.
 
----
+## Context
 
 Groups may pass information down the route in the user-defined context object. Handlers wishing to receive context should bind one of their parameters to the `Context()` marker.
 
@@ -312,45 +312,60 @@ res()
 
 ## Const parameters
 
-The `Const` class detaches handler parameters from the command line.
-This allows to integrate existing functions into the CLI without extra wrappers.
+The `const` option sets fixed or dynamic parameter default.
 
-Here, _login_ and _frob_ parameters are internal:
+Used by it's own, it allows to integrate existing functions into the CLI without extra wrappers.
+Mixed with other options, it sets parameter default in a more explicit way.
+
+Here, _login_ and _frob_ parameters are internal, while _bar_'s default is defined by `const`.
 
 ```python
 from paramspecli import Const
 
-def third_party_function(login: str, password: str, *, frob: bool, foo: int | None):
+def third_party_function(login: str, password: str, *, frob: bool, foo: int | None, bar: int):
     pass
 
 with cli.add_command("frobnicate", third_party_function) as cmd:
     cmd.bind(
-        -Const("bob"),
+        -const("bob"),
         -argument("PASSWORD"),
-        frob=-Const(True),
+        frob=-const(True),
         foo=-option("--foo", type=int),
+        bar=-(const(42) | option("--bar", type=int)),
     )
 ```
 
-In such cases, it may be useful to deviate from 'positionals are arguments' convention
-and bind positionals to options by name.
+Const may load it's value dynamically at parse time. This feature makes it easy to support environment variables.
 
-The _login_ parameter is an option here:
+Here, `password` is loaded from the env variable. If loader returns the special `MISSING` value, load result is
+ignored and default of the option (`"qwerty"`) wins:
 
 ```python
-with cli.add_command("frobnicate", third_party_function) as cmd:
-cmd.bind(
-    login=-option("--login", default="bob"),
-    ...
+from paramspecli import MISSING
+
+def login(*, password: str) -> None:
+    pass
+
+def load_password(context: Any):
+    return os.environ.get("MY_PASSWORD", MISSING)
+
+cli = Command(login)
+cli.bind(
+    password=-(
+        const(load=load_password)
+        | option("--password", default="qwerty")
+    )
 )
 ```
+
+Loaders may examine the [context](#context) before taking decisions. See example in [loading file-based defaults](recipes.md#loading-file-based-defaults).
 
 ## Actions
 
 Actions are options with side effects. They are not bound to the handlers. Actions are attached via `Group.append_action` or `Command.append_action`
 methods. Two common actions are included: `version_action` and `help_action`.
 
-Supporting `--version` action:
+Handling `--version`:
 
 ```python
 from paramspecli import version_action
@@ -365,7 +380,42 @@ $ python prog.py --version
 42
 ```
 
-See [Extending](extending.md#actions) on defining custom actions.
+---
+
+The `custom_action` calls the used-defined handler at parse time.
+
+**custom_action**(_\*names, handler, type=None, nargs=None, default=None, help=None, choices=None, metavar=None, show_default=None_)
+
+- _names_, _type_, _nargs_, _help_, _choices_, _metavar_, _show_default_ - see [option](basic.md#option)
+- _default_: used in `--help` output only
+- _handler_ (_\*, context, parser, value, option_string, config, \*\*kwargs_)
+    - _context_: [Context](#context) object or `None`
+    - _parser_: running `ArgumentParser`
+    - _value_: value parsed from the command line after the _type()_ conversion. May be `None` if _nargs_ = 0.
+      Will be `paramspecli.MISSING` if _nargs_ = `?` and no words present.
+    - _option_string_: actual matched option string from the command line
+    - _config_: [Config](#configuration) object
+
+Here, we implement a custom `--number` action updating the context:
+
+```python
+cli = Group()
+
+def handle_number(*, context: dict[str, int], value: int, **kwargs: Any):
+    context["number"] = value
+
+cli.append_action(custom_action("--number", handler=handle_number, type=int))
+
+ctx = {}
+cli.parse("--number 42", context=ctx)
+print(ctx["number"]) # 42
+```
+
+This technique is useful for [loading file-based defaults](recipes#loading-file-based-defaults).
+!!! tip
+
+    Custom actions have access to the generated parser and able to call it's methods. This is how the `help_action` is implemented -
+    it calls `parser.print_help()` followed by `parser.exit()`
 
 ## Lazy imports
 
@@ -408,7 +458,7 @@ A few aspects of the generated `ArgumentParser` may be tuned by passing a custom
 
 `Config` is a dataclass with a following fields:
 
-- _show_default_ = `True`. Defaults are printed in help where it makes sence. Set to `False` to globally opt-out.
+- _show_default_ = `True`. Defaults are printed in help where it makes sense. Set to `False` to globally opt-out.
   Options may set own _show_default_ to selectively opt-in.
 
 - _propage_epilog_ = `False`. Set it to the `True` to force groups and commands show the same epilog as the root group. It's a simple way to ensure epilogs are consistent.
@@ -434,7 +484,7 @@ A few aspects of the generated `ArgumentParser` may be tuned by passing a custom
 
 - _allow_abbrev_ = False. Allow argparse do the guesswork and accept sloppy command line.
 - _parser_class_. Allows to use alternative parser class instead of the `ArgumentParser`
-- _formatter_class_ - Allows to choose `HelpFormatter`-compatible formatter. By default, set to a slighty modified one, which disables wrapping if there are manual line breaks in text.
+- _formatter_class_ - Allows to choose `HelpFormatter`-compatible formatter. By default, set to a slightly modified one, which disables wrapping if there are manual line breaks in text.
 - _ignore_unknown_args_ - Silently ignore any unrecognized args and store them into the `Route.unknown_args`. _Added in 0.2.2_
 - _root_parser_extra_kwargs_ - dict of extra kwargs for the root `ArgumentParser()`
 - _sub_parser_extra_kwargs_ - dict of extra kwargs for every sub `ArgumentParser()`

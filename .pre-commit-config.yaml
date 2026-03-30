@@ -1,0 +1,50 @@
+# See https://pre-commit.com for more information
+repos:
+    - repo: local
+      hooks:
+          - id: black
+            name: black
+            language: system
+            entry: black --check
+            files: \.py$
+
+          - id: ruff
+            name: ruff
+            language: system
+            entry: ruff check src tests
+            pass_filenames: false
+            files: \.py$
+
+          - id: pytest
+            name: pytest
+            entry: pytest
+            language: system
+            pass_filenames: false
+            files: \.py$
+
+          - id: pyright
+            name: pyright
+            entry: pyright src tests
+            language: system
+            pass_filenames: false
+            files: \.py$
+
+          - id: mypy
+            name: mypy
+            entry: mypy src tests --strict
+            language: system
+            pass_filenames: false
+            files: \.py$
+
+          - id: ty
+            name: ty
+            entry: ty check src tests
+            language: system
+            pass_filenames: false
+            files: \.py$
+
+          - id: codespell
+            name: codespell
+            language: system
+            entry: codespell -L JSUT,OT
+            files: \.py|\.md$

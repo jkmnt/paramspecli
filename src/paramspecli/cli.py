@@ -1,4 +1,4 @@
-import argparse
+import argparse as ap
 import dataclasses
 import sys
 from types import EllipsisType
@@ -12,6 +12,7 @@ from typing import (
     Literal,
     Mapping,
     NamedTuple,
+    NoReturn,
     Protocol,
     Self,
     Sequence,
@@ -27,23 +28,18 @@ from .apstub import (
     SupportsAddArgumentGroup,
     SupportsAddOneofGroup,
     SupportsAddParser,
-    SupportsSetDefaults,
     TypeConverter,
 )
 from .conv import PathConv
+from .exc import ParseAgain
 
 # TODO:
 # if section has a headline, it's not auto-purged from the help.
 # Ok for user sections, bad for the default options/arguments sections
 
+# Using ellipsis as a missing sentinel
 type Missing = EllipsisType
 MISSING: Final = ...
-
-
-class HandlerSpec(NamedTuple):
-    func: Callable[..., None] | None
-    args: list[str]  # [arg_key]
-    opts: dict[str, str]  # {opt_name: opt_key}
 
 
 class Markup(Protocol):
@@ -52,15 +48,40 @@ class Markup(Protocol):
     def __str__(self) -> str: ...
 
 
+class ActionHandler[T](Protocol):
+    def __call__(
+        self,
+        *,
+        context: Any,
+        parser: ap.ArgumentParser,
+        # namespace: ap.Namespace,
+        value: T,
+        option_string: str | None = None,
+        config: "Config",
+        **kwargs: Any,
+    ) -> None: ...
+
+
+# TODO: narrow context type ?
+class ConstLoader[T](Protocol):
+    def __call__(self, *, context: Any) -> T | Missing: ...
+
+
 class DefaultFunc[**P](Protocol):
-    def __call__(self, parser: ArgumentParserLike, /, *args: P.args, **kwargs: P.kwargs) -> None: ...
+    def __call__(self, parser: ap.ArgumentParser, /, *args: P.args, **kwargs: P.kwargs) -> None: ...
+
+
+class HandlerSpec(NamedTuple):
+    func: Callable[..., None] | None
+    args: list[str]  # [arg_key]
+    opts: dict[str, str]  # {opt_name: opt_key}
 
 
 def _make_spec(
     level: int,
     func: Callable[..., None] | None,
-    args: Sequence["Arg | Cnst | Ctx"],
-    options: Mapping[str, "Opt | MixedOpts | Cnst | Ctx"],
+    args: Sequence["Arg | ConstOpt | CtxOpt"],
+    options: Mapping[str, "Opt | MixedOpts | ConstOpt | CtxOpt"],
 ) -> HandlerSpec:
     return HandlerSpec(
         func=func,
@@ -91,6 +112,16 @@ def is_markup(obj: object) -> TypeGuard[Markup]:
     return hasattr(obj, "plain")
 
 
+def iter_impossible_option_names() -> Iterator[str]:
+    i = 0
+    while True:
+        i += 1
+        yield f"--\U000f0000{i}"
+
+
+_impossible_option_names = iter_impossible_option_names()
+
+
 @overload
 def _as_plain(arg: str | Markup) -> str: ...
 
@@ -107,7 +138,7 @@ def _as_plain(arg: str | Markup | None) -> str | None:
     return str(arg)
 
 
-def _may_raise_custom_exceptions(conv: TypeConverter[Any]) -> bool:
+def _may_raise_unhandled_exceptions(conv: TypeConverter[Any]) -> bool:
     if conv is int:
         return False
     if conv is float:
@@ -127,24 +158,25 @@ def print_group_help(parser: ArgumentParserLike, /, *args: Any, **kwargs: Any) -
 # print some values in a nicer way. currently it's a lists w/o quotes
 def nice_str(val: Any) -> str:
     if isinstance(val, list):
-        return f"[{ ", ".join([str(item) for item in val])}]"
+        return f"[{', '.join([str(item) for item in val])}]"
     return str(val)
 
 
 def _with_argparser_arg[**P](
-    f: Callable[Concatenate[ArgumentParserLike, P], None], argparser: ArgumentParserLike
+    f: Callable[Concatenate[ap.ArgumentParser, P], None], argparser: ap.ArgumentParser
 ) -> Callable[P, None]:
     def _wrapper(*args: P.args, **kwargs: P.kwargs) -> None:
         f(argparser, *args, **kwargs)
 
-    # ty as of 0.0.18 suggests some nonsense here
-    return _wrapper  # ty: ignore[invalid-return-type]
+    return _wrapper
 
 
 # took the idea from mypy. nice and simple.
 # if there are newlines in text, emit as is (with indent)
 # otherwise use default wrapping HelpFormatter.
-class HelpFormatter(argparse.HelpFormatter):
+# A few private methods are overridden. Not nice, but they are unlikely
+# to change - nobody wants to broke mypy )
+class HelpFormatter(ap.HelpFormatter):
     def __init__(self, prog: str, *args: Any, **kwargs: Any) -> None:
         super().__init__(prog=prog, max_help_position=28)
 
@@ -159,10 +191,10 @@ class HelpFormatter(argparse.HelpFormatter):
         return super()._split_lines(text, width)
 
     # interpolate lists manually to avoid extra quotes
-    def _get_help_string(self, action: argparse.Action) -> str | None:
+    def _get_help_string(self, action: ap.Action) -> str | None:
         help = action.help
 
-        if help is not None and "%(default)s" in help:
+        if help is not None and "%(default)s" in help and action.default is not ap.SUPPRESS:
             if isinstance(action.default, list):
                 s = nice_str(action.default)
                 help = help.replace("%(default)s", s)
@@ -192,9 +224,9 @@ class Config:
     """Catch all type converter exceptions and print as CLI errors"""
     allow_abbrev: bool = False
     """Guess incomplete arguments"""
-    parser_class: type[argparse.ArgumentParser] = argparse.ArgumentParser
+    parser_class: type[ap.ArgumentParser] = ap.ArgumentParser
     """Argparge parser class to use"""
-    formatter_class: type[argparse.HelpFormatter] = HelpFormatter
+    formatter_class: type[ap.HelpFormatter] = HelpFormatter
     """Silently ignore unknown args and place them into the Route.unknown_args"""
     ignore_unknown_args: bool = False
     """Argparse help formatter class to use"""
@@ -216,6 +248,7 @@ class Arg:
     nargs: int | Literal["*", "+", "?"] | None = None
     default: Any = None
     extra: Mapping[str, Any] | None = None
+    inject: Mapping[str, Any] | None = None
 
     def __repr__(self) -> str:
         return _repr_class(self, {k: getattr(self, k) for k in self.__dataclass_fields__}, skip_empty=False)
@@ -224,31 +257,45 @@ class Arg:
     def __hash__(self) -> int:
         return hash(self.metavar)
 
-    def _build(self, owner: SupportsAddArgument, config: Config, *, dest: str, **_rest: Any) -> None:
+    def _compose_settings(self, config: Config) -> dict[str, Any]:
         conv = self.conv
-        if conv and config.catch_typeconv_exceptions and _may_raise_custom_exceptions(conv):
+        if conv and config.catch_typeconv_exceptions and _may_raise_unhandled_exceptions(conv):
             conv = util.catch_all(conv)
 
         help = self.help
 
         if help is False:
-            help = argparse.SUPPRESS
+            help = ap.SUPPRESS
         elif help is True:
             help = ""
 
-        # most kwargs shouldn't be set at all if None
-        kwargs: dict[str, Any] = {
+        # these kwargs shouldn't be set at all if None
+        out: dict[str, Any] = {
             "choices": self.choices,
             "nargs": self.nargs,
             "metavar": self.metavar,
             # NOTE: if type is not specified, argparse's MetavarTypeHelpFormatter may fail!
             "type": conv,
         }
-        kwargs = {k: v for k, v in kwargs.items() if v is not None}
+        out = {k: v for k, v in out.items() if v is not None}
         if self.extra:
-            kwargs |= self.extra
+            out |= self.extra
 
-        owner.add_argument(dest=dest, help=_as_plain(help), default=self.default, **kwargs)
+        out["help"] = _as_plain(help)
+        out["default"] = self.default
+
+        return out
+
+    def _build(self, owner: SupportsAddArgument, config: Config, *, dest: str, context: Any, **kwargs: Any) -> None:
+        settings = self._compose_settings(config)
+        action = owner.add_argument(dest=dest, **settings)
+        if self.inject:
+            for k, v in self.inject.items():
+                setattr(action, k, v)
+
+    def with_injected(self, **kwargs: Any) -> Self:
+        """Return a copy of option with attributes to be injected into the action"""
+        return dataclasses.replace(self, inject=kwargs)
 
 
 # Too many fields to manage: dataclass to the rescue
@@ -265,12 +312,13 @@ class Opt:
     required: bool = False
     choices: Iterable[Any] | None = None
     metavar: str | tuple[str, ...] | None = None
-    action: str | type[argparse.Action] | None = None
+    action: type[ap.Action] | str | None = None
     nargs: int | Literal["*", "+", "?"] | None = None
     default: Any = None
     const: Any = None
     deprecated: bool = False
     extra: Mapping[str, Any] | None = None
+    inject: Mapping[str, Any] | None = None
 
     def __post_init__(self) -> None:
         if not self.names:
@@ -287,11 +335,11 @@ class Opt:
     def __hash__(self) -> int:
         return hash(self.names)
 
-    def _build(self, owner: SupportsAddArgument, config: Config, *, dest: str | Literal[False], **_rest: Any) -> None:
+    def _compose_settings(self, config: Config) -> dict[str, Any]:
         help = self.help
 
         if help is False:
-            help = argparse.SUPPRESS
+            help = ap.SUPPRESS
         elif help is True:
             help = ""
         elif help is None:
@@ -313,11 +361,11 @@ class Opt:
                 help += f" (default: {show_default})"
 
         conv = self.conv
-        if conv and config.catch_typeconv_exceptions and _may_raise_custom_exceptions(conv):
+        if conv and config.catch_typeconv_exceptions and _may_raise_unhandled_exceptions(conv):
             conv = util.catch_all(conv)
 
-        # most kwargs shouldn't be set at all if None
-        kwargs: dict[str, Any] = {
+        # these kwargs shouldn't be set at all if None
+        out: dict[str, Any] = {
             "action": self.action,
             "choices": self.choices,
             "nargs": self.nargs,
@@ -327,12 +375,22 @@ class Opt:
             "required": self.required or None,
             "deprecated": self.deprecated if sys.version_info >= (3, 13) else None,
         }
-        kwargs = {k: v for k, v in kwargs.items() if v is not None}
+        out = {k: v for k, v in out.items() if v is not None}
 
         if self.extra:
-            kwargs |= self.extra
+            out |= self.extra
 
-        owner.add_argument(*self.names, dest=dest or argparse.SUPPRESS, default=self.default, help=help, **kwargs)
+        out["default"] = self.default
+        out["help"] = help
+
+        return out
+
+    def _build(self, owner: SupportsAddArgument, config: Config, *, dest: str, context: Any, **kwargs: Any) -> None:
+        settings = self._compose_settings(config)
+        action = owner.add_argument(*self.names, dest=dest, **settings)
+        if self.inject:
+            for k, v in self.inject.items():
+                setattr(action, k, v)
 
     @property
     def is_hidden(self) -> bool:
@@ -342,33 +400,160 @@ class Opt:
         section.include(self)
         return self
 
+    def with_injected(self, **kwargs: Any) -> Self:
+        """Return a copy of option with attributes to be injected into the action"""
+        return dataclasses.replace(self, inject=kwargs)
 
 
-class Cnst:
-    __slots__ = ("value",)
+# We want repeated options to replace default values like a normal options.
+# With the stock argparse there is no way to get rid of default, it always augmented.
+# This little hack tracks the state of repeated options to know when to replace and when
+# to append.
+def _set_repeated_items(ns: ap.Namespace, dest: str, value: Any, *, extend: bool) -> None:
+    seen_repeated_option: set[str] = getattr(ns, "_seen_repeated_options", set())
+    if dest not in seen_repeated_option:
+        seen_repeated_option.add(dest)
+        setattr(ns, "_seen_repeated_options", seen_repeated_option)
+        items: list[Any] = []
+    else:
+        items = getattr(ns, dest)[:]
 
-    def __init__(self, value: Any):
-        self.value: Final = value
-
-    def __repr__(self) -> str:
-        return _repr_class(self, {"value": self.value}, skip_none=False)
-
-    def __eq__(self, other: object) -> bool:
-        if not isinstance(other, Cnst):
-            return NotImplemented
-        return bool(self.value == other.value)
-
-    def _build(self, owner: SupportsSetDefaults, config: Config, *, dest: str, **_rest: Any) -> None:
-        owner.set_defaults(**{dest: self.value})
+    if extend:
+        items.extend(value)
+    else:
+        items.append(value)
+    setattr(ns, dest, items)
 
 
-class Ctx:
+# Subclassing stock actions to change the default handling.
+# They are private but looking stable.
+# In case of future incompabilitity, it's easy to do a full reimplementation.
+
+
+class AppendAction(ap._AppendAction):
+    def __call__(
+        self, parser: ap.ArgumentParser, namespace: ap.Namespace, values: Any, *args: Any, **kwargs: Any
+    ) -> None:
+        _set_repeated_items(namespace, self.dest, values, extend=False)
+
+
+class AppendConstAction(ap._AppendConstAction):
+    def __call__(self, parser: ap.ArgumentParser, namespace: ap.Namespace, *args: Any, **kwargs: Any) -> None:
+        _set_repeated_items(namespace, self.dest, self.const, extend=False)
+
+
+class ExtendAction(ap._AppendAction):
+    def __call__(
+        self, parser: ap.ArgumentParser, namespace: ap.Namespace, values: Any, *args: Any, **kwargs: Any
+    ) -> None:
+        _set_repeated_items(namespace, self.dest, values, extend=True)
+
+
+class LoadConstAction(ap.Action):
+    """Custom action returning dynamic default"""
+
+    def __init__(
+        self,
+        option_strings: Sequence[str],
+        dest: str,
+        option: "ConstOpt",
+        context: Any,
+        **kwargs: Any,
+    ) -> None:
+        super().__init__(option_strings, dest=dest, nargs=0, help=ap.SUPPRESS, **kwargs)
+        self.option: Final = option
+        self.context: Final = context
+
+    # we try to load dynamic value
+    # if value is missing, fallback to default
+    # if still missing, suppress.
+    # assuming parser-level default or next option will take priority
+    @property
+    def default(self) -> Any:
+        value = self.option.default
+        if self.option.load:
+            res = self.option.load(context=self.context)
+            if res is not MISSING:
+                value = res
+        if value is MISSING:
+            return ap.SUPPRESS
+        return value
+
+    @default.setter
+    def default(self, val: Any) -> None:
+        pass
+
+
+class CallableAction(ap.Action):
+    """Action which delegates the very action to the user-defined handler"""
+
+    def __init__(
+        self,
+        option_strings: Sequence[str],
+        dest: str,
+        *args: Any,
+        handler: ActionHandler[Any],
+        context: Any,
+        config: Config,
+        **kwargs: Any,
+    ) -> None:
+        super().__init__(option_strings, dest, *args, **kwargs)
+        self.handler = handler
+        self.context = context
+        self.config = config
+
+    def __call__(
+        self,
+        parser: ap.ArgumentParser,
+        namespace: ap.Namespace,
+        values: Any,
+        option_string: str | None = None,
+    ) -> None:
+        self.handler(
+            context=self.context,
+            parser=parser,
+            value=values,
+            option_string=option_string,
+            config=self.config,
+        )
+
+
+class CtxOpt:
+    """Astract Context option"""
+
     __slots__ = ()
 
-    def _build(self, owner: SupportsSetDefaults, config: Config, *, dest: str, context: Any) -> None:
+    def _build(self, owner: ArgumentGroupLike, config: Config, *, dest: str, context: Any, **kwargs: Any) -> None:
         if context is None:
             raise ValueError("context can't be None")
         owner.set_defaults(**{dest: context})
+
+
+class ConstOpt:
+    """Astract (loadable) const option"""
+
+    __slots__ = ("default", "load")
+
+    def __init__(self, value: Any = None, load: ConstLoader[Any] | None = None):
+        self.default: Final = value
+        self.load: Final = load
+
+    def __repr__(self) -> str:
+        return _repr_class(self, {"default": self.default, "load": self.load}, skip_none=False, skip_empty=False)
+
+    def __eq__(self, other: object) -> bool:
+        if not isinstance(other, ConstOpt):
+            return NotImplemented
+        return bool(self.load == other.load and self.load == other.load)
+
+    def _build(self, owner: ArgumentGroupLike, config: Config, *, dest: str, context: Any, **kwargs: Any) -> None:
+        # this set_default is for the case when we're a single option and load had failed.
+        # If load was ok, it's value will win.
+        # If load was not ok, next option default will win
+        owner.set_defaults(**{dest: self.default})
+        owner.add_argument(
+            next(_impossible_option_names), action=LoadConstAction, dest=dest, context=context, option=self
+        )
 
 
 class MixedOpts:
@@ -376,7 +561,13 @@ class MixedOpts:
 
     __slots__ = ("options",)
 
-    def __init__(self, *options: Opt):
+    def __init__(self, *options: Opt | ConstOpt):
+        _head, *_rest = options
+        # Consts are working via setting default so only head is in effect.
+        # This limitation is to avoid confusion.
+        if any(isinstance(opt, ConstOpt) for opt in _rest):
+            raise TypeError("Const may be only a first option of mix")
+
         self.options: Final = options
 
     def __eq__(self, other: object) -> bool:
@@ -388,20 +579,55 @@ class MixedOpts:
         return _repr_class(self, {"options": self.options})
 
     def __getitem__(self, section: "Section") -> Self:
-        for option in self.options:
+        for option in self._real_options:
             section.include(option)
         return self
 
+    @property
+    def _real_options(self) -> list[Opt]:
+        return [opt for opt in self.options if isinstance(opt, Opt)]
 
-class Action(Opt):
+    @classmethod
+    def _from_items(cls, *items: "Opt | ConstOpt | MixedOpts") -> Self:
+        opts: list[Opt | ConstOpt] = []
+        for item in items:
+            if isinstance(item, MixedOpts):
+                opts.extend(item.options)
+            else:
+                opts.append(item)
+        return cls(*opts)
+
+
+@dataclasses.dataclass(slots=True, repr=False)
+class Action[T](Opt):
     """Special kind of option with side effects"""
 
-    __slots__ = ()
+    handler: ActionHandler[T]
 
-    def _build(self, owner: SupportsAddArgument, config: Config, *, dest: str | Literal[False], **_rest: Any) -> None:
-        if dest is not False:
+    __hash__ = Opt.__hash__
+
+    def _build(self, owner: SupportsAddArgument, config: Config, *, context: Any, **kwargs: Any) -> None:
+        dest = kwargs.get("dest")
+        if dest:
             raise TypeError(f"Action is used in place of Option {dest!r}")
-        return super()._build(owner, config, dest=dest)
+
+        assert self.action is None
+
+        settings = self._compose_settings(config)
+        settings["default"] = ap.SUPPRESS
+
+        action = owner.add_argument(
+            *self.names,
+            dest=ap.SUPPRESS,
+            action=CallableAction,
+            handler=self.handler,
+            config=config,
+            context=context,
+            **settings,
+        )
+        if self.inject:
+            for k, v in self.inject.items():
+                setattr(action, k, v)
 
 
 class Section:
@@ -420,7 +646,7 @@ class Section:
             self.options.add(option)
         else:
             assert isinstance(option, MixedOpts)
-            self.options.update(option.options)
+            self.options.update(option._real_options)
         return option
 
     def _build(self, owner: SupportsAddArgumentGroup, config: Config) -> ArgumentGroupLike:
@@ -447,7 +673,7 @@ class Oneof:
             self.options.add(option)
         else:
             assert isinstance(option, MixedOpts)
-            self.options.update(option.options)
+            self.options.update(option._real_options)
         return option
 
     __call__ = include
@@ -469,9 +695,9 @@ class ParserLike:
         self.epilog = epilog
         self.prog = prog
 
-        self.arguments: list[Arg | Cnst | Ctx] | None = None
-        self.actions: list[Action] = []
-        self.options: dict[str, Opt | MixedOpts | Cnst | Ctx] | None = None
+        self.arguments: list[Arg | ConstOpt | CtxOpt] | None = None
+        self.actions: list[Action[Any]] = []
+        self.options: dict[str, Opt | MixedOpts | ConstOpt | CtxOpt] | None = None
         self.sections: list[Section] = []
         self.oneofs: list[Oneof] = []
 
@@ -485,12 +711,12 @@ class ParserLike:
         """Set arguments and options. Positional parameters are arguments. Keyword parameters are options"""
 
         for i, argument in enumerate(arguments):
-            if not isinstance(argument, (Arg, Cnst, Ctx)):
-                raise TypeError(f"parameter {i} should be an Argument | Const | Context")
+            if not isinstance(argument, (Arg, ConstOpt, CtxOpt)):
+                raise TypeError(f"parameter {i} should be an Argument | Const | Load | Context")
 
         for name, option in options.items():
-            if not isinstance(option, (Opt, MixedOpts, Cnst, Ctx)):
-                raise TypeError(f"parameter {name!r} should be Option | MixedOptions | Const | Context")
+            if not isinstance(option, (Opt, MixedOpts, ConstOpt, CtxOpt)):
+                raise TypeError(f"parameter {name!r} should be Option | MixedOptions | Const | Load | Context")
 
         self.arguments = [*arguments]
         self.options = {**options}
@@ -551,14 +777,14 @@ class ParserLike:
         tgtmap = self._build_sections(parser, config, default_group=default_options_group)
 
         for action in self.actions:
-            action._build(tgtmap.pop(action, default_options_group), config, dest=False)
+            action._build(tgtmap.pop(action, default_options_group), config, context=context)
 
         if self.options:
             for param, item in self.options.items():
                 dest = f"{level}.{param}"
                 seq = (item,) if not isinstance(item, MixedOpts) else item.options
                 for opt in seq:
-                    if isinstance(opt, (Cnst, Ctx)):
+                    if isinstance(opt, (ConstOpt, CtxOpt)):
                         opt._build(parser, config, dest=dest, context=context)
                     else:
                         opt._build(tgtmap.pop(opt, default_options_group), config, dest=dest, context=context)
@@ -595,7 +821,7 @@ class ParserLike:
             **config.sub_parser_extra_kwargs,
         )
 
-    def _build_root_parser(self, config: Config) -> argparse.ArgumentParser:
+    def _create_root_parser(self, config: Config) -> ap.ArgumentParser:
         return config.parser_class(
             description=_as_plain(self.info),
             epilog=_as_plain(self.epilog),
@@ -607,7 +833,7 @@ class ParserLike:
             **config.root_parser_extra_kwargs,
         )
 
-    def append_action(self, action: Action) -> None:
+    def append_action(self, action: Action[Any]) -> None:
         """Append Action"""
         self.actions.append(action)
 
@@ -636,7 +862,7 @@ class ParserLike:
             if isinstance(item, Opt):
                 out.append(item)
             elif isinstance(item, MixedOpts):
-                out.extend(item.options)
+                out.extend(item._real_options)
         return out
 
     def __enter__(self) -> Self:
@@ -669,7 +895,7 @@ class Handler:
         self.func(*self.arguments, **self.options)
 
     @classmethod
-    def from_ns(cls, ns: argparse.Namespace, spec: HandlerSpec) -> Self:
+    def from_ns(cls, ns: ap.Namespace, spec: HandlerSpec) -> Self:
         vars = ns.__dict__
 
         args = [vars[name] for name in spec.args]
@@ -717,7 +943,7 @@ class Route:
         return [h for h in self.handlers if h.func is not None]
 
     @classmethod
-    def from_ns(cls, ns: argparse.Namespace, unknown_args: Sequence[str] | None = None) -> Self:
+    def from_ns(cls, ns: ap.Namespace, unknown_args: Sequence[str] | None = None) -> Self:
         specs: list[tuple[int, HandlerSpec]] = []
         for k, v in ns.__dict__.items():
             try:
@@ -771,19 +997,30 @@ class Command[**P](ParserLike):
         self._set_params(*arguments, **options)
         return self
 
+    def build_parser(self, *, config: Config, context: Any = None) -> ap.ArgumentParser:
+        """Build ArgumentParser"""
+        parser = self._create_root_parser(config)
+        self._build(parser, config, parents=[], context=context)
+        return parser
+
     def parse(self, input: Sequence[str] | None = None, *, config: Config | None = None, context: Any = None) -> Route:
         """Parse command line. Allows to use the Command as standalone groupless CLI"""
 
         config = config or Config()
-        parser = self._build_root_parser(config)
-        self._build(parser, config, parents=[], context=context)
+        parser = self.build_parser(config=config, context=context)
+        unknown_args: list[str] | None = None
 
-        if config.ignore_unknown_args:
-            ns, unknown_args = parser.parse_known_args(input)
-            return Route.from_ns(ns, unknown_args=unknown_args)
+        while True:
+            try:
+                if config.ignore_unknown_args:
+                    ns, unknown_args = parser.parse_known_args(input)
+                else:
+                    ns = parser.parse_args(input)
+                break
+            except ParseAgain:
+                continue
 
-        ns = parser.parse_args(input)
-        return Route.from_ns(ns)
+        return Route.from_ns(ns, unknown_args=unknown_args)
 
 
 class Group(ParserLike):
@@ -825,7 +1062,8 @@ class Group(ParserLike):
         if not self.default_func:
             return
 
-        default_func = _with_argparser_arg(self.default_func, parser)
+        ap_parser: ap.ArgumentParser = parser  # type: ignore # ty: ignore[invalid-assignment]
+        default_func = _with_argparser_arg(self.default_func, ap_parser)
 
         level = len(parents)
         next_level = level + 1
@@ -853,24 +1091,36 @@ class Group(ParserLike):
                 e.add_note(f"{'  ' * len(parents)}- {name!r}")
                 raise
 
+    def build_parser(self, *, config: Config, context: Any = None) -> ap.ArgumentParser:
+        """Build ArgumentParser"""
+        parser = self._create_root_parser(config)
+        self._build(parser, config, parents=[], context=context)
+        return parser
+
     def parse(self, input: Sequence[str] | None = None, *, config: Config | None = None, context: Any = None) -> Route:
         """Parse command line"""
 
         config = config or Config()
 
         try:
-            parser = self._build_root_parser(config)
-            self._build(parser, config, parents=[], context=context)
+            parser = self.build_parser(config=config, context=context)
         except Exception as e:
             e.add_note("- Cli")
             raise
 
-        if config.ignore_unknown_args:
-            ns, unknown_args = parser.parse_known_args(input)
-            return Route.from_ns(ns, unknown_args=unknown_args)
+        unknown_args: list[str] | None = None
 
-        ns = parser.parse_args(input)
-        return Route.from_ns(ns)
+        while True:
+            try:
+                if config.ignore_unknown_args:
+                    ns, unknown_args = parser.parse_known_args(input)
+                else:
+                    ns = parser.parse_args(input)
+                break
+            except ParseAgain:
+                continue
+
+        return Route.from_ns(ns, unknown_args=unknown_args)
 
     def add_command[**P](
         self,
@@ -990,12 +1240,16 @@ class CallableGroup[**P](Group):
         return self
 
 
-def help_action(*, help: str | Markup | bool = "Show help and exit") -> Action:
-    return Action(("--help", "-h"), action="help", help=help)
+def _help_action_handler(*, parser: ap.ArgumentParser, **kwargs: Any) -> NoReturn:
+    parser.print_help()
+    parser.exit(0)
 
 
-def version_action(version: str, *, help: str | Markup | bool = "Show program's version number and exit") -> Action:
-    return Action(("--version",), action="version", help=help, extra={"version": version})
+# it really belongs to the acts.py, but we need it here and circular imports are bad
+def help_action(
+    *, help: str | Markup | bool = "Show help and exit", names: tuple[str, ...] = ("--help", "-h")
+) -> Action[None]:
+    return Action(names, help=help, nargs=0, handler=_help_action_handler)
 
 
 _help_action: Final = help_action()

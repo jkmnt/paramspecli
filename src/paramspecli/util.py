@@ -3,7 +3,7 @@ from argparse import ArgumentTypeError
 from functools import wraps
 from typing import Callable, NoReturn, TextIO
 
-from .apstub import TypeConverter
+from .exc import ParseAgain
 
 
 def echo(*strings: str, nl: bool = True, stream: TextIO | None = None) -> None:
@@ -25,13 +25,15 @@ def exit(status: int = 0, message: str | tuple[str, ...] | None = None) -> NoRet
     sys.exit(status)
 
 
-def catch_all[T](f: TypeConverter[T]) -> TypeConverter[T]:
-    """Catch type converter exceptions and present them as the cli errors"""
+def catch_all[**P, T](f: Callable[P, T]) -> Callable[P, T]:
+    """Catch callable exceptions and present them as the cli errors"""
 
     @wraps(f)
-    def catcher(s: str) -> T:
+    def catcher(*args: P.args, **kwargs: P.kwargs) -> T:
         try:
-            return f(s)
+            return f(*args, **kwargs)
+        except ParseAgain as e:
+            raise e
         except ArgumentTypeError as e:
             raise e
         except Exception as e:

@@ -81,7 +81,7 @@ def test_oneof_repeateds() -> None:
         exclusive = cmd.add_oneof()
 
         cmd.bind(
-            foo=-exclusive.include(repeated_option("--foo", type=int)),
+            foo=-exclusive.include(repeated_option("--foo", type=int, default=[])),
             bar=-option("--bar"),
             baz=-exclusive(option("--baz")),
         )
@@ -191,7 +191,7 @@ def test_oneof_mixed_repeateds() -> None:
 
         cmd.bind(
             foobar=-exclusive(
-                repeated_option("--foo", type=int) + repeated_option("--bar"),
+                repeated_option("--foo", type=int, default=[]) + repeated_option("--bar"),
             ),
         )
 
@@ -229,9 +229,10 @@ def test_required_oneof_mixed_repeateds() -> None:
         cmd.bind(
             foobar=-(
                 #
-                ex1(repeated_option("--foo", type=int)) + ex1(repeated_option("--bar"))
+                ex1(repeated_option("--foo", type=int, default=[]))
+                + ex1(repeated_option("--bar"))
             )[hlp],
-            baz=-ex2(repeated_option("--baz"))[hlp],
+            baz=-ex2(repeated_option("--baz", default=[]))[hlp],
         )
 
     with pytest.raises(ParseError, match="is required"):

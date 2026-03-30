@@ -5,13 +5,12 @@ from typing import Any, assert_type
 import pytest
 
 from paramspecli import (
-    Action,
     Config,
-    Const,
     Context,
     PathConv,
     Route,
     argument,
+    const,
     fake,
     flag,
     option,
@@ -20,6 +19,7 @@ from paramspecli import (
     util,
     version_action,
 )
+from paramspecli.cli import Action
 from paramspecli.md import Md
 
 from .fix import Command, Group, ParseError, ensure_called, ensure_exit, track_call
@@ -97,7 +97,7 @@ def test_alt_lie() -> None:
     )
     assert_type(
         repeated_option("--foo").t,
-        list[str],
+        list[str] | None,
     )
     assert_type(
         (option("--foo") | option("--boo")).t,
@@ -106,7 +106,7 @@ def test_alt_lie() -> None:
 
     assert_type(
         (repeated_option("--foo") + repeated_option("--boo", type=int)).t,
-        list[str | int],
+        list[str | int] | None,
     )
 
 
@@ -214,7 +214,7 @@ def test_repr() -> None:
                 foo=-one(option("--foo", type=int)[h]),
                 mix=-(flag("--mix") | flag("--fix")),
                 mixlist=-(repeated_flag("--r") + repeated_flag("--f")),
-                c=Const(42),
+                c=const(42),
             )
 
     util.echo(str(PathConv()))
@@ -234,7 +234,7 @@ def test_repr() -> None:
         repeated_option("--foo"),
         option("--foo") | option("--bar"),
         repeated_option("--foo") + repeated_option("--bar"),
-        Action(("--bla",)),
+        Action(("--bla",), handler=lambda *args, **kwargs: None),
         Context(),
     ],
 )
