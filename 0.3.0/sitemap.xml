@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
+      <url>
+        <loc>https://jkmnt.github.io/paramspecli/0.3.0/</loc>
+      </url>
+      <url>
+        <loc>https://jkmnt.github.io/paramspecli/0.3.0/basic/</loc>
+      </url>
+      <url>
+        <loc>https://jkmnt.github.io/paramspecli/0.3.0/advanced/</loc>
+      </url>
+      <url>
+        <loc>https://jkmnt.github.io/paramspecli/0.3.0/doc/</loc>
+      </url>
+      <url>
+        <loc>https://jkmnt.github.io/paramspecli/0.3.0/extending/</loc>
+      </url>
+      <url>
+        <loc>https://jkmnt.github.io/paramspecli/0.3.0/recipes/</loc>
+      </url>
+      <url>
+        <loc>https://jkmnt.github.io/paramspecli/0.3.0/qa/</loc>
+      </url>
+</urlset>
