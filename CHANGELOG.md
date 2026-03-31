@@ -2,6 +2,9 @@
 
 ## [Unreleased]
 
+## Added
+ - `color` module for coloring with escape codes
+
 ## [0.3.0]
 
 ## Added
