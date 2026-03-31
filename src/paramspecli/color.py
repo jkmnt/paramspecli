@@ -57,6 +57,7 @@ CODES: dict[Token, int] = {
     "text-white": 37,
     #
     "text-bold": 1,
+    #
     "bg-black": 40,
     "bg-red": 41,
     "bg-green": 42,
